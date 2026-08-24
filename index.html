@@ -1,0 +1,2279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>Daily Flow</title>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%23FFFFFF'/%3E%3Ccircle cx='90' cy='90' r='52' fill='none' stroke='%23C90038' stroke-width='14' stroke-linecap='round' stroke-dasharray='245 82'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#FFFFFF;
+    --card:#FFFFFF;
+    --ink:#111214;
+    --muted:#8A8F96;
+    --line:#E8EAED;
+    --fill:#F5F6F7;          /* neutral tint, no colour cast */
+    --accent:#C90038;        /* crimson */
+    --accent-2:#8E0027;      /* deep red (secondary) */
+    --accent-soft:#FBE6EB;
+    --accent-2-soft:#F7E4E9;
+    --radius:18px;
+    --shadow:0 1px 2px rgba(17,18,20,.05), 0 6px 18px rgba(17,18,20,.05);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);color:var(--ink);letter-spacing:-.01em;
+    display:flex;justify-content:center;
+    -webkit-font-smoothing:antialiased;
+  }
+  #app{
+    width:100%;max-width:430px;min-height:100dvh;
+    display:flex;flex-direction:column;position:relative;
+    padding:max(env(safe-area-inset-top),16px) 20px 0;
+  }
+  .view{display:none;flex:1;flex-direction:column;padding-bottom:110px;animation:fade .25s ease}
+  .view.active{display:flex}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+  /* ---------- header ---------- */
+  .top{display:flex;align-items:center;justify-content:space-between;padding:10px 0 18px}
+  .greet{font-size:26px;font-weight:700;letter-spacing:-.5px;color:var(--ink)}
+  .icon-btn{
+    width:42px;height:42px;border-radius:50%;border:1px solid var(--line);
+    background:var(--card);display:flex;align-items:center;justify-content:center;
+    font-size:17px;cursor:pointer;color:var(--ink);
+  }
+
+  /* ---------- week strip ---------- */
+  .week{display:flex;justify-content:space-between;margin-bottom:18px}
+  .day{
+    display:flex;flex-direction:column;align-items:center;gap:8px;
+    cursor:pointer;flex:1;
+  }
+  .day .lbl{font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.5px}
+  .day .num{
+    width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-size:14px;font-weight:600;color:var(--ink);border:1px solid transparent;
+  }
+  .day.today .num{border-color:var(--accent)}
+  .day.sel .num{background:var(--accent);color:#fff}
+
+  /* ---------- month calendar ---------- */
+  .cal-toggle{
+    width:100%;border:none;background:none;color:var(--muted);
+    font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;
+    padding:0 0 16px;letter-spacing:.4px;
+  }
+  .month-grid{margin-bottom:8px}
+  .month-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding:0 4px}
+  .month-head b{font-size:15px;font-weight:700}
+  .month-head button{border:none;background:var(--card);width:32px;height:32px;border-radius:50%;
+    box-shadow:var(--shadow);cursor:pointer;font-size:14px;color:var(--ink)}
+  .mg{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
+  .mg .wd{font-size:10px;font-weight:700;color:var(--muted);padding:4px 0;letter-spacing:.5px}
+  .mg .cell{
+    aspect-ratio:1;display:flex;align-items:center;justify-content:center;
+    font-size:13px;font-weight:600;border-radius:50%;cursor:pointer;position:relative;
+  }
+  .mg .cell.today{border:1px solid var(--accent)}
+  .mg .cell.sel{background:var(--accent);color:#fff}
+  .mg .cell .tick{position:absolute;bottom:3px;width:4px;height:4px;border-radius:50%;background:var(--accent)}
+  .mg .cell.sel .tick{background:#fff}
+
+  /* ---------- running banner ---------- */
+  .run-banner{
+    background:var(--ink);color:#fff;border-radius:100px;padding:13px 20px;
+    display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;
+    margin-bottom:16px;cursor:pointer;box-shadow:0 8px 20px rgba(23,21,26,.25);
+  }
+  .run-banner .rb-name{overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+  .run-banner .t{margin-left:auto;font-variant-numeric:tabular-nums;flex-shrink:0}
+
+  /* ---------- summary card ---------- */
+  .summary{
+    background:var(--accent-soft);border:1px solid rgba(201,0,56,.10);
+    border-radius:var(--radius);padding:18px 20px;
+    margin-bottom:24px;position:relative;overflow:hidden;
+  }
+  .summary h2{font-size:17px;font-weight:700;margin-bottom:4px}
+  .summary p{font-size:13px;color:var(--muted)}
+  .summary .dot{
+    position:absolute;right:20px;bottom:18px;width:10px;height:10px;border-radius:50%;
+    background:var(--accent);
+  }
+
+  /* ---------- section head ---------- */
+  .sec-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+  .sec-head h3{font-size:13px;font-weight:700;letter-spacing:1.2px;color:var(--ink)}
+  .sec-head span{font-size:12px;color:var(--muted)}
+
+  /* ---------- task cards ---------- */
+  .task{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:15px 16px;display:flex;align-items:center;gap:14px;margin-bottom:10px;cursor:pointer;
+  }
+  .task .bar{width:4px;align-self:stretch;border-radius:4px}
+  .task .info{flex:1;min-width:0}
+  .task .info h4{font-size:15px;font-weight:600;margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .task .info p{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+  .task .info .cat-tag{font-weight:600}
+  .task.done .info h4{text-decoration:line-through;color:var(--muted)}
+  .pill{
+    background:var(--accent);color:#fff;border:none;border-radius:100px;
+    padding:9px 18px;font-size:13px;font-weight:600;cursor:pointer;flex-shrink:0;
+    display:flex;align-items:center;gap:6px;font-family:inherit;
+  }
+  .pill.light{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+  .task .check{
+    width:24px;height:24px;border-radius:50%;border:1.5px solid var(--line);flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff;cursor:pointer;
+  }
+  .task.done .check{background:var(--accent);border-color:var(--accent)}
+  .empty{
+    text-align:center;color:var(--muted);font-size:14px;padding:48px 20px;line-height:1.6;
+  }
+
+  /* ---------- timer view ---------- */
+  .timer-wrap{display:flex;flex-direction:column;align-items:center;text-align:center;padding-top:6px}
+  .now-chip{
+    background:var(--fill);border-radius:100px;
+    padding:10px 18px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:10px;
+    margin-bottom:26px;
+  }
+  .now-chip .eq{display:flex;gap:2.5px;align-items:flex-end;height:14px}
+  .now-chip .eq i{width:3px;background:var(--accent-2);border-radius:2px;animation:eq 1s ease-in-out infinite}
+  .now-chip .eq i:nth-child(1){height:60%;animation-delay:0s}
+  .now-chip .eq i:nth-child(2){height:100%;animation-delay:.2s}
+  .now-chip .eq i:nth-child(3){height:45%;animation-delay:.4s}
+  @keyframes eq{0%,100%{transform:scaleY(.5)}50%{transform:scaleY(1)}}
+  .timer-title{font-size:21px;font-weight:700;margin-bottom:6px}
+  .timer-range{font-size:13px;color:var(--muted);margin-bottom:30px}
+  .ring-box{position:relative;width:270px;height:270px;margin-bottom:30px}
+  .ring-box svg{transform:rotate(-90deg)}
+  .ring-time{
+    position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  }
+  .ring-time .t{font-size:44px;font-weight:700;letter-spacing:-1px;font-variant-numeric:tabular-nums}
+  .ring-time .sub{font-size:13px;color:var(--muted);margin-top:2px}
+  .timer-cat{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;margin-bottom:28px}
+  .timer-cat .c-dot{width:10px;height:10px;border-radius:50%}
+  .timer-actions{display:flex;gap:12px}
+  .pill.big{padding:14px 30px;font-size:15px}
+
+  /* ---------- stats ---------- */
+  .seg{
+    display:flex;background:var(--fill);border-radius:100px;padding:3px;
+    margin-bottom:26px;
+  }
+  .seg button{
+    flex:1;border:none;background:none;padding:10px;border-radius:100px;
+    font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;font-family:inherit;
+  }
+  .seg button.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(17,18,20,.12)}
+  .donut-box{position:relative;width:260px;height:260px;margin:6px auto 26px}
+  .donut-center{
+    position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
+  }
+  .donut-center .n{font-size:40px;font-weight:700;letter-spacing:-1px}
+  .donut-center .l{font-size:12px;color:var(--muted);margin-top:2px}
+  .legend{display:flex;flex-direction:column;gap:10px}
+  .legend .row{
+    background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:13px 16px;display:flex;align-items:center;gap:12px;
+  }
+  .legend .c-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+  .legend .name{flex:1;font-size:14px;font-weight:600}
+  .legend .val{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .legend .pct{font-size:13px;font-weight:700;width:44px;text-align:right}
+
+  /* ---------- categories ---------- */
+  .cat-row{
+    background:var(--card);border-radius:16px;box-shadow:var(--shadow);
+    padding:14px 16px;display:flex;align-items:center;gap:12px;margin-bottom:10px;
+  }
+  .cat-row input[type=color]{
+    width:34px;height:34px;border:none;border-radius:50%;overflow:hidden;cursor:pointer;
+    padding:0;background:none;flex-shrink:0;
+  }
+  .cat-row input[type=color]::-webkit-color-swatch-wrapper{padding:0}
+  .cat-row input[type=color]::-webkit-color-swatch{border:none;border-radius:50%}
+  .cat-row .name{flex:1;font-size:14px;font-weight:600;border:none;background:none;font-family:inherit;color:var(--ink);outline:none}
+  .cat-row .del{
+    width:32px;height:32px;border-radius:50%;border:none;background:var(--bg);
+    color:var(--muted);font-size:15px;cursor:pointer;flex-shrink:0;
+  }
+  .add-cat{
+    width:100%;border:1.5px dashed #D6DADE;background:none;border-radius:16px;
+    padding:15px;font-size:14px;font-weight:600;color:var(--muted);cursor:pointer;font-family:inherit;
+    margin-top:6px;
+  }
+
+  /* ---------- habit ---------- */
+  .hb-month{font-size:13px;font-weight:700;color:var(--muted);letter-spacing:.6px;margin-bottom:14px}
+  .hb-sentence{
+    font-family:Georgia,'Times New Roman',serif;font-size:25px;line-height:1.55;
+    color:#A39B95;margin-bottom:26px;
+  }
+  .hb-blank{
+    color:var(--ink);border-bottom:2.5px solid var(--accent-2);outline:none;
+    padding:0 2px;min-width:60px;display:inline;
+  }
+  .hb-blank:empty:before{content:attr(data-ph);color:#C4C8CD}
+  .hb-card{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:20px;margin-bottom:10px;
+  }
+  .hb-card h4{font-size:14px;font-weight:700;margin-bottom:3px}
+  .hb-card .since{font-size:12px;color:var(--muted);margin-bottom:6px}
+  .hb-card .big{font-size:40px;font-weight:700;letter-spacing:-1px;margin-bottom:14px}
+  .hb-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+  .hb-grid .wd{font-size:10px;font-weight:700;color:var(--muted);text-align:center;padding-bottom:2px}
+  .hb-cell{
+    aspect-ratio:1;border-radius:6px;background:var(--fill);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;font-size:10px;color:transparent;
+  }
+  .hb-cell.on{background:var(--accent-2)}
+  .hb-cell.today{box-shadow:inset 0 0 0 1.5px var(--accent-2)}
+  .hb-cell.off{visibility:hidden}
+  .hb-stats{display:flex;gap:12px}
+  .hb-stats .hb-card{flex:1;text-align:center;margin-bottom:0;padding:18px 12px}
+  .hb-stats h5{font-size:12px;font-weight:600;color:var(--muted);margin-bottom:8px}
+  .hb-stats .n{font-size:34px;font-weight:700;letter-spacing:-1px}
+  .hb-stats .n .drop{font-size:18px;color:var(--accent-2)}
+
+  /* ---------- bottom nav ---------- */
+  .nav{
+    position:fixed;bottom:0;left:50%;transform:translateX(-50%);
+    width:100%;max-width:430px;
+    padding:10px 34px calc(max(env(safe-area-inset-bottom),14px));
+    display:flex;align-items:center;justify-content:space-between;
+    background:rgba(255,255,255,.92);backdrop-filter:saturate(180%) blur(20px);
+    -webkit-backdrop-filter:saturate(180%) blur(20px);border-top:1px solid var(--line);
+  }
+  .nav button{
+    border:none;background:none;font-size:21px;color:#B6BBC1;cursor:pointer;
+    width:46px;height:46px;display:flex;align-items:center;justify-content:center;
+  }
+  .nav button.on{color:var(--ink)}
+  .nav .fab{
+    width:58px;height:58px;border-radius:50%;background:var(--accent);color:#fff;
+    font-size:24px;box-shadow:0 6px 18px rgba(201,0,56,.3);
+  }
+
+  /* ---------- habit slider ---------- */
+  .hb-track{
+    display:flex;overflow-x:auto;scroll-snap-type:x mandatory;
+    gap:14px;margin:0 -20px;padding:0 20px 4px;
+    scrollbar-width:none;-webkit-overflow-scrolling:touch;
+  }
+  .hb-track::-webkit-scrollbar{display:none}
+  .hb-slide{flex:0 0 100%;scroll-snap-align:center;min-width:0}
+  .hb-dots{display:flex;justify-content:center;align-items:center;gap:7px;margin:16px 0 4px}
+  .hb-dots i{width:7px;height:7px;border-radius:50%;background:#D6DADE;cursor:pointer;
+    transition:background .2s,width .2s}
+  .hb-dots i.on{background:var(--accent-2);width:20px;border-radius:4px}
+  .hb-dots .addh{
+    border:none;background:none;color:var(--muted);font-size:16px;cursor:pointer;
+    padding:0 4px;line-height:1;font-family:inherit;
+  }
+  .hb-slide .hb-sentence{margin-bottom:16px;min-height:66px}
+  .hb-actions{display:flex;gap:8px;margin-bottom:18px}
+
+  /* ---------- budget ---------- */
+  .bg-hero{
+    background:var(--accent-2-soft);border:1px solid rgba(142,0,39,.12);
+    border-radius:18px;padding:16px 18px;margin-bottom:12px;cursor:pointer;
+  }
+  .bg-hero .lbl{font-size:11px;font-weight:600;color:var(--muted);margin-bottom:3px}
+  .bg-hero .amt{font-size:27px;font-weight:700;letter-spacing:-.8px;margin-bottom:2px}
+  .bg-hero .of{font-size:12px;color:var(--muted);margin-bottom:10px}
+  .bg-bar{height:7px;border-radius:7px;background:rgba(142,0,39,.15);overflow:hidden}
+  .bg-bar i{display:block;height:100%;border-radius:10px;background:var(--accent-2);transition:width .4s}
+  .bg-hero .warn{color:var(--accent)}
+  .bg-row{
+    background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:13px 16px;display:flex;align-items:center;gap:12px;margin-bottom:8px;
+  }
+  .bg-row input[type=color]{width:30px;height:30px;border:none;border-radius:50%;overflow:hidden;
+    cursor:pointer;padding:0;background:none;flex-shrink:0}
+  .bg-row input[type=color]::-webkit-color-swatch-wrapper{padding:0}
+  .bg-row input[type=color]::-webkit-color-swatch{border:none;border-radius:50%}
+  .bg-row .name{flex:1;font-size:14px;font-weight:600;min-width:0;border:none;background:none;
+    font-family:inherit;color:var(--ink);outline:none}
+  .bg-row .val{font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--muted)}
+  .bg-row .del{width:30px;height:30px;border-radius:50%;border:none;background:var(--bg);
+    color:var(--muted);font-size:14px;cursor:pointer;flex-shrink:0}
+  .bg-exp{
+    background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:11px 14px;display:flex;align-items:center;gap:10px;margin-bottom:6px;cursor:pointer;
+  }
+  .bg-exp .c-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+  .bg-exp .meta{flex:1;min-width:0}
+  .bg-exp .meta h4{font-size:13px;font-weight:600;margin-bottom:1px;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .bg-exp .meta p{font-size:10.5px;color:var(--muted)}
+  .bg-exp .amt{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums}
+  /* horizontal category tiles */
+  .bg-tiles{
+    display:flex;gap:8px;overflow-x:auto;padding:2px 20px 6px;
+    margin:0 -20px;scrollbar-width:none;-webkit-overflow-scrolling:touch;
+  }
+  .bg-tiles::-webkit-scrollbar{display:none}
+  .bg-tile{
+    flex:0 0 88px;background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:12px 10px;cursor:pointer;position:relative;
+  }
+  .bg-tile .c-dot{width:8px;height:8px;border-radius:50%;margin-bottom:8px}
+  .bg-tile .nm{font-size:11px;font-weight:600;color:var(--muted);margin-bottom:3px;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .bg-tile .amt{font-size:14px;font-weight:700;letter-spacing:-.3px;margin-bottom:8px;
+    font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .bg-tile .mini{height:4px;border-radius:4px;background:var(--fill);overflow:hidden}
+  .bg-tile .mini i{display:block;height:100%;border-radius:4px}
+  .bg-tile .lim{font-size:9.5px;color:#A2A8AF;margin-top:5px;font-weight:600}
+  .bg-tile.warn .amt{color:#E35C7E}
+  .bg-tile.over .amt{color:var(--accent)}
+  .bg-tile.add{
+    display:flex;align-items:center;justify-content:center;color:var(--muted);
+    font-size:20px;font-weight:600;background:none;border:1.5px dashed #D6DADE;box-shadow:none;
+    flex:0 0 52px;
+  }
+
+  /* day strip for expenses */
+  .exp-days{display:flex;justify-content:space-between;gap:2px;margin-bottom:14px}
+  .exp-day{flex:1;text-align:center;cursor:pointer;padding:6px 1px;border-radius:12px;min-width:0}
+  .exp-day.sel{background:var(--fill)}
+  .exp-day .wd{font-size:10px;font-weight:600;color:var(--muted);margin-bottom:3px}
+  .exp-day .dd{font-size:16px;font-weight:600;margin-bottom:4px}
+  .exp-day .sm{font-size:9.5px;font-weight:600;color:var(--accent);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .exp-day.future .dd,.exp-day.future .wd{color:#C4C8CD}
+  .exp-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+  .exp-nav button{border:none;background:none;color:var(--muted);font-size:15px;cursor:pointer;padding:4px 10px}
+  .exp-nav span{font-size:11.5px;font-weight:600;color:var(--muted)}
+
+  .bg-cat{
+    background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:11px 14px;margin-bottom:7px;
+  }
+  .bg-cat .head{display:flex;align-items:center;gap:10px}
+  .bg-cat input[type=color]{width:20px;height:20px;border:none;border-radius:50%;overflow:hidden;
+    cursor:pointer;padding:0;background:none;flex-shrink:0}
+  .bg-cat input[type=color]::-webkit-color-swatch-wrapper{padding:0}
+  .bg-cat input[type=color]::-webkit-color-swatch{border:none;border-radius:50%}
+  .bg-cat .name{flex:1;font-size:13px;font-weight:600;min-width:0;border:none;background:none;
+    font-family:inherit;color:var(--ink);outline:none;padding:0}
+  .bg-cat .val{font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;flex-shrink:0}
+  .bg-cat .del{width:22px;height:22px;border-radius:50%;border:none;background:none;
+    color:#C4C8CD;font-size:12px;cursor:pointer;flex-shrink:0;padding:0}
+  .bg-cat .sub{display:flex;align-items:center;justify-content:space-between;
+    margin-top:6px;font-size:10.5px;color:var(--muted)}
+  .bg-cat .mini{height:4px;border-radius:4px;background:var(--fill);overflow:hidden;margin-top:6px}
+  .bg-cat .mini i{display:block;height:100%;border-radius:4px;transition:width .4s}
+  .bg-cat .setlim{border:none;background:none;color:#A2A8AF;font-size:10.5px;
+    font-weight:600;cursor:pointer;font-family:inherit;padding:0}
+  .bg-cat .over{color:var(--accent);font-weight:700}
+  .unalloc{
+    text-align:center;font-size:11.5px;color:var(--muted);margin:-2px 0 16px;
+  }
+  .chart-btn{
+    width:100%;border:1px solid var(--line);background:var(--card);border-radius:14px;
+    padding:13px;font-size:14px;font-weight:600;color:var(--accent-2);cursor:pointer;
+    font-family:inherit;margin-top:24px;display:flex;align-items:center;justify-content:center;gap:8px;
+  }
+  #v-budget .add-cat{padding:11px;font-size:12.5px;border-radius:14px;margin-top:2px}
+  #v-budget .sec-head{margin-bottom:10px}
+  #v-budget .sec-head h3{font-size:11.5px;letter-spacing:1px}
+  #v-budget .hb-month{margin-bottom:10px;font-size:12px}
+
+  /* ---------- album ---------- */
+  .al-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+  .al-grid .wd{font-size:10px;font-weight:600;color:var(--muted);text-align:center;padding-bottom:3px}
+  .al-cell{
+    aspect-ratio:1;border-radius:8px;background:var(--fill);cursor:pointer;
+    overflow:hidden;position:relative;display:flex;align-items:center;justify-content:center;
+    font-size:10px;color:#C4C8CD;font-weight:600;
+  }
+  .al-cell img{width:100%;height:100%;object-fit:cover;display:block}
+  .al-cell.off{visibility:hidden}
+  .al-cell.today{box-shadow:inset 0 0 0 1.5px var(--accent)}
+  .al-hint{text-align:center;font-size:12px;color:var(--muted);margin-top:18px;line-height:1.6}
+
+  /* camera */
+  .cam-wrap{
+    position:fixed;inset:0;z-index:120;background:#000;display:none;
+    flex-direction:column;align-items:center;justify-content:center;
+  }
+  .cam-wrap.open{display:flex}
+  .cam-stage{
+    position:relative;width:100%;max-width:430px;aspect-ratio:3/4;
+    background:#111;overflow:hidden;
+  }
+  .cam-stage video,.cam-stage img{
+    width:100%;height:100%;object-fit:cover;display:block;
+  }
+  .cam-stage video.mirror{transform:scaleX(-1)}
+  .cam-step{
+    position:absolute;top:14px;left:50%;transform:translateX(-50%);
+    background:rgba(0,0,0,.55);color:#fff;border-radius:100px;
+    padding:7px 16px;font-size:12px;font-weight:600;backdrop-filter:blur(10px);
+  }
+  .cam-pip{
+    position:absolute;top:14px;left:14px;width:29%;aspect-ratio:3/4;
+    border-radius:12px;overflow:hidden;border:2px solid #111214;background:#222;
+    box-shadow:0 4px 14px rgba(0,0,0,.4);
+  }
+  .cam-pip img{width:100%;height:100%;object-fit:cover}
+  .cam-bar{
+    display:flex;align-items:center;justify-content:center;gap:26px;
+    padding:26px 20px calc(max(env(safe-area-inset-bottom),20px));width:100%;max-width:430px;
+  }
+  .cam-zoom{
+    position:absolute;bottom:16px;left:50%;transform:translateX(-50%);
+    display:flex;gap:6px;background:rgba(0,0,0,.4);border-radius:100px;padding:5px;
+    backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  }
+  .cam-zoom button{
+    min-width:36px;height:36px;border-radius:50%;border:none;background:none;
+    color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;
+  }
+  .cam-zoom button.on{background:rgba(255,255,255,.22);color:#fff;font-size:13px}
+  .cam-shutter{
+    width:70px;height:70px;border-radius:50%;background:#fff;border:4px solid rgba(255,255,255,.35);
+    cursor:pointer;flex-shrink:0;
+  }
+  .cam-txt{
+    border:none;background:none;color:#fff;font-size:15px;font-weight:600;
+    cursor:pointer;font-family:inherit;min-width:64px;
+  }
+  .cam-err{color:#fff;text-align:center;padding:40px 30px;font-size:14px;line-height:1.7}
+
+  /* photo viewer */
+  .pv-wrap{
+    position:fixed;inset:0;z-index:115;background:rgba(0,0,0,.92);display:none;
+    flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:20px;
+  }
+  .pv-wrap.open{display:flex}
+  .pv-wrap img{max-width:100%;max-height:68vh;border-radius:14px;object-fit:contain}
+  .pv-date{color:#fff;font-size:13px;font-weight:600}
+  .pv-bar{display:flex;gap:10px}
+
+  /* ---------- celebration ---------- */
+  #confetti{
+    position:fixed;inset:0;width:100%;height:100%;
+    pointer-events:none;z-index:90;display:none;
+  }
+  #toast{
+    position:fixed;left:50%;bottom:120px;transform:translateX(-50%) translateY(20px);
+    background:rgba(17,18,20,.92);color:#fff;border-radius:100px;
+    backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+    padding:14px 26px;font-size:15px;font-weight:600;white-space:nowrap;
+    box-shadow:0 8px 24px rgba(17,18,20,.25);
+    z-index:95;opacity:0;pointer-events:none;transition:opacity .3s,transform .3s;
+  }
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  /* ---------- modal ---------- */
+  .overlay{
+    position:fixed;inset:0;background:rgba(23,21,26,.4);z-index:50;
+    display:none;align-items:flex-end;justify-content:center;
+  }
+  .overlay.open{display:flex}
+  .sheet{
+    width:100%;max-width:430px;background:var(--bg);
+    border-radius:28px 28px 0 0;padding:24px 22px calc(max(env(safe-area-inset-bottom),20px));
+    animation:up .3s cubic-bezier(.2,.9,.3,1);max-height:88dvh;overflow-y:auto;
+  }
+  @keyframes up{from{transform:translateY(60px);opacity:0}to{transform:none;opacity:1}}
+  .sheet h3{font-size:18px;font-weight:700;margin-bottom:20px}
+  .field{margin-bottom:16px}
+  .field label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:8px;letter-spacing:.4px}
+  .field input,.field select{
+    width:100%;border:1px solid var(--line);background:var(--card);border-radius:14px;
+    padding:14px;font-size:15px;font-family:inherit;color:var(--ink);outline:none;
+    appearance:none;-webkit-appearance:none;
+  }
+  .field input:focus,.field select:focus{border-color:var(--accent)}
+  .f-2col{display:flex;gap:12px}
+  .f-2col .field{flex:1}
+  .sheet-actions{display:flex;gap:10px;margin-top:8px}
+  .sheet-actions .pill{flex:1;justify-content:center;padding:15px}
+  .danger{color:var(--accent);background:none;border:none;font-size:14px;font-weight:600;
+    width:100%;padding:14px;cursor:pointer;font-family:inherit;margin-top:4px}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ============ HOME ============ -->
+  <section class="view active" id="v-home">
+    <div class="top">
+      <div class="greet" id="greeting">Good Morning</div>
+      <button class="icon-btn" onclick="go('cats')">✦</button>
+    </div>
+    <div class="week" id="weekStrip"></div>
+    <div class="month-grid" id="monthGrid" style="display:none"></div>
+    <button class="cal-toggle" id="calToggle" onclick="toggleCal()">▾ Month view</button>
+    <div class="run-banner" id="runBanner" style="display:none" onclick="openTimerView()"></div>
+    <div class="summary">
+      <h2 id="sumTitle">0 Tasks Completed</h2>
+      <p>You're all set — plan your day below</p>
+      <div class="dot"></div>
+    </div>
+    <div class="sec-head">
+      <h3 id="lblStartDay">START YOUR DAY</h3>
+      <button class="pill" style="padding:6px 14px;font-size:12px" id="btnAddTask" onclick="openTaskSheet()">+ Add</button>
+    </div>
+    <div id="taskList"></div>
+  </section>
+
+  <!-- ============ TIMER ============ -->
+  <section class="view" id="v-timer">
+    <div class="timer-wrap">
+      <div class="now-chip">
+        <span class="eq"><i></i><i></i><i></i></span>
+        <span id="lblFocus">Focus Session</span>
+      </div>
+      <div class="timer-title" id="tTitle">—</div>
+      <div class="timer-range" id="tRange"></div>
+      <div class="ring-box">
+        <svg width="270" height="270" viewBox="0 0 270 270">
+          <defs>
+            <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#C90038"/>
+              <stop offset="100%" stop-color="#C90038"/>
+            </linearGradient>
+          </defs>
+          <circle cx="135" cy="135" r="118" fill="none" stroke="#EDEFF1" stroke-width="16"/>
+          <circle id="ringFg" cx="135" cy="135" r="118" fill="none" stroke="url(#ringGrad)"
+            stroke-width="16" stroke-linecap="round" stroke-dasharray="741.4" stroke-dashoffset="741.4"/>
+        </svg>
+        <div class="ring-time">
+          <div class="t" id="tClock">00:00</div>
+          <div class="sub" id="tSub">remaining</div>
+        </div>
+      </div>
+      <div class="timer-cat" id="tCat"></div>
+      <div class="timer-actions">
+        <button class="pill light big" id="btnStop" onclick="stopTimer(false)">Stop</button>
+        <button class="pill big" id="tToggle" onclick="toggleTimer()">● Pause</button>
+        <button class="pill light big" id="btnDone" onclick="stopTimer(true)">Done ✓</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ STATS ============ -->
+  <section class="view" id="v-stats">
+    <div class="top">
+      <div class="greet" id="lblYourTime">Your Time</div>
+    </div>
+    <div class="seg">
+      <button id="segW" class="on" onclick="setStatsMode('week')">This Week</button>
+      <button id="segM" onclick="setStatsMode('month')">This Month</button>
+    </div>
+    <div class="donut-box">
+      <svg id="donutSvg" width="260" height="260" viewBox="0 0 260 260"></svg>
+      <div class="donut-center">
+        <div class="n" id="statTotal">0h</div>
+        <div class="l" id="statLabel">focused</div>
+      </div>
+    </div>
+    <div class="legend" id="statLegend"></div>
+  </section>
+
+  <!-- ============ CATEGORIES ============ -->
+  <section class="view" id="v-cats">
+    <div class="top">
+      <div class="greet" id="lblCats">Categories</div>
+      <button class="icon-btn" onclick="go('home')">✕</button>
+    </div>
+    <div class="cat-row" style="justify-content:space-between">
+      <span style="font-size:14px;font-weight:600">Language</span>
+      <span style="display:flex;gap:6px">
+        <button class="pill" id="langEn" onclick="setLang('en')">EN</button>
+        <button class="pill light" id="langKo" onclick="setLang('ko')">한국어</button>
+      </span>
+    </div>
+    <div id="catList"></div>
+    <button class="add-cat" id="btnAddCat" onclick="addCategory()">+ Add category</button>
+
+    <div class="sec-head" style="margin-top:28px"><h3 id="lblData">DATA</h3></div>
+    <div class="cat-row" style="cursor:pointer" onclick="exportData()">
+      <span style="flex:1;font-size:14px;font-weight:600" id="lblExport">Back up my data</span>
+      <span style="color:var(--muted);font-size:16px">\u2913</span>
+    </div>
+    <div class="cat-row" style="cursor:pointer" onclick="document.getElementById('importFile').click()">
+      <span style="flex:1;font-size:14px;font-weight:600" id="lblImport">Restore from backup</span>
+      <span style="color:var(--muted);font-size:16px">\u2912</span>
+    </div>
+    <input type="file" id="importFile" accept="application/json,.json" style="display:none" onchange="importData(this)">
+    <div class="cat-row" style="cursor:pointer" onclick="forceUpdate()">
+      <span style="flex:1;font-size:14px;font-weight:600" id="lblUpdate">Check for updates</span>
+      <span style="color:var(--muted);font-size:16px">\u21BB</span>
+    </div>
+
+    <div style="text-align:center;color:var(--muted);font-size:11px;margin-top:18px">Daily Flow · v15</div>
+  </section>
+
+  <!-- ============ HABIT ============ -->
+  <section class="view" id="v-habit">
+    <div class="top">
+      <div class="greet" id="lblHabit">Habit</div>
+      <div style="display:flex;gap:8px">
+        <button class="icon-btn" onclick="shiftHabitMonth(-1)">‹</button>
+        <button class="icon-btn" onclick="shiftHabitMonth(1)">›</button>
+      </div>
+    </div>
+    <div class="hb-month" id="hbMonth"></div>
+    <div class="hb-track" id="hbTrack"></div>
+    <div class="hb-dots" id="hbDots"></div>
+  </section>
+
+  <!-- ============ BUDGET ============ -->
+  <section class="view" id="v-budget">
+    <div class="top">
+      <div class="greet" id="lblBudget">Budget</div>
+      <div style="display:flex;gap:8px">
+        <button class="icon-btn" onclick="shiftBudgetMonth(-1)">‹</button>
+        <button class="icon-btn" onclick="shiftBudgetMonth(1)">›</button>
+      </div>
+    </div>
+    <div class="hb-month" id="bgMonth"></div>
+
+    <div class="bg-hero" onclick="openGoalSheet()">
+      <div class="lbl" id="lblRemaining">Remaining</div>
+      <div class="amt" id="bgRemain">0</div>
+      <div class="of" id="bgOf"></div>
+      <div class="bg-bar"><i id="bgBar" style="width:0%"></i></div>
+    </div>
+
+    <div class="unalloc" id="bgUnalloc"></div>
+
+    <div class="sec-head"><h3 id="lblByCat">BY CATEGORY</h3></div>
+    <div class="bg-tiles" id="bgCatList"></div>
+
+    <div class="sec-head" style="margin-top:24px"><h3 id="lblRecent">EXPENSES</h3></div>
+    <div class="exp-nav">
+      <button onclick="shiftExpWeek(-1)">‹</button>
+      <span id="expWeekLbl"></span>
+      <button onclick="shiftExpWeek(1)">›</button>
+    </div>
+    <div class="exp-days" id="expDays"></div>
+    <div id="bgExpList"></div>
+    <button class="add-cat" id="btnAddExp" onclick="openExpenseSheet()">+ Add expense</button>
+    <button class="chart-btn" id="btnChart" onclick="openChartSheet()">◔ View chart</button>
+  </section>
+
+  <!-- ============ ALBUM ============ -->
+  <section class="view" id="v-album">
+    <div class="top">
+      <div class="greet" id="lblAlbum">Snap &lt;3</div>
+      <div style="display:flex;gap:8px">
+        <button class="icon-btn" onclick="shiftAlbumMonth(-1)">‹</button>
+        <button class="icon-btn" onclick="shiftAlbumMonth(1)">›</button>
+      </div>
+    </div>
+    <div class="hb-month" id="alMonth"></div>
+    <div class="al-grid" id="alGrid"></div>
+    <div class="al-hint" id="alHint"></div>
+  </section>
+
+  <!-- ============ NAV ============ -->
+  <div class="nav">
+    <button id="nav-home" class="on" onclick="go('home')">⌂</button>
+    <button id="nav-habit" onclick="go('habit')">▦</button>
+    <button class="fab" id="nav-album" onclick="go('album')">◉</button>
+    <button id="nav-budget" onclick="go('budget')">₩</button>
+    <button id="nav-stats" onclick="go('stats')">◔</button>
+  </div>
+
+  <!-- ============ CHART SHEET ============ -->
+  <div class="overlay" id="chartOverlay" onclick="if(event.target===this)closeChartSheet()">
+    <div class="sheet">
+      <h3 id="lblChartSheet">Where your money went</h3>
+      <div class="donut-box" style="width:230px;height:230px;margin:4px auto 22px">
+        <svg id="bgDonut" width="230" height="230" viewBox="0 0 230 230"></svg>
+        <div class="donut-center">
+          <div class="n" id="bgSpentBig" style="font-size:26px">0</div>
+          <div class="l" id="lblSpent">spent</div>
+        </div>
+      </div>
+      <div class="legend" id="bgLegend"></div>
+      <div class="sheet-actions">
+        <button class="pill" id="btnChartClose" onclick="closeChartSheet()" style="flex:1;justify-content:center">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ CAT LIMIT SHEET ============ -->
+  <div class="overlay" id="limitOverlay" onclick="if(event.target===this)closeLimitSheet()">
+    <div class="sheet">
+      <h3 id="lblLimitSheet">Category limit</h3>
+      <div class="field">
+        <label id="lblLimitName">CATEGORY</label>
+        <input id="lfName" type="text" autocomplete="off">
+      </div>
+      <div class="field">
+        <label id="lblLimitAmt">LIMIT (LEAVE EMPTY FOR NONE)</label>
+        <input id="lfAmount" type="number" inputmode="numeric" min="0" placeholder="100000">
+      </div>
+      <div class="sheet-actions">
+        <button class="pill light" id="btnLCancel" onclick="closeLimitSheet()">Cancel</button>
+        <button class="pill" id="btnLSave" onclick="saveLimitSheet()">Save</button>
+      </div>
+      <button class="danger" id="btnLDel" onclick="delBudgetCatFromSheet()">Delete category</button>
+    </div>
+  </div>
+
+  <!-- ============ GOAL SHEET ============ -->
+  <div class="overlay" id="goalOverlay" onclick="if(event.target===this)closeGoalSheet()">
+    <div class="sheet">
+      <h3 id="lblGoalSheet">Monthly budget</h3>
+      <div class="field">
+        <label id="lblGoalAmt">TOTAL BUDGET</label>
+        <input id="gfAmount" type="number" inputmode="numeric" min="0" placeholder="500000">
+      </div>
+      <div class="field">
+        <label id="lblCurrency">CURRENCY SYMBOL</label>
+        <input id="gfCur" type="text" maxlength="3" placeholder="₩">
+      </div>
+      <div class="sheet-actions">
+        <button class="pill light" id="btnGCancel" onclick="closeGoalSheet()">Cancel</button>
+        <button class="pill" id="btnGSave" onclick="saveGoalSheet()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ EXPENSE SHEET ============ -->
+  <div class="overlay" id="expOverlay" onclick="if(event.target===this)closeExpenseSheet()">
+    <div class="sheet">
+      <h3 id="lblExpSheet">Add expense</h3>
+      <div class="field">
+        <label id="lblEfAmt">AMOUNT</label>
+        <input id="efAmount" type="number" inputmode="numeric" min="0" placeholder="12000">
+      </div>
+      <div class="field">
+        <label id="lblEfCat">CATEGORY</label>
+        <select id="efCat"></select>
+      </div>
+      <div class="field">
+        <label id="lblEfNote">NOTE (OPTIONAL)</label>
+        <input id="efNote" type="text" placeholder="lunch" autocomplete="off">
+      </div>
+      <div class="field">
+        <label id="lblEfDate">DATE</label>
+        <input id="efDate" type="date">
+      </div>
+      <div class="sheet-actions">
+        <button class="pill light" id="btnECancel" onclick="closeExpenseSheet()">Cancel</button>
+        <button class="pill" id="btnESave" onclick="saveExpenseSheet()">Save</button>
+      </div>
+      <button class="danger" id="btnEDel" style="display:none" onclick="deleteExpense()">Delete expense</button>
+    </div>
+  </div>
+
+  <!-- ============ CAMERA ============ -->
+  <div class="cam-wrap" id="camWrap">
+    <div class="cam-stage" id="camStage">
+      <video id="camVideo" playsinline muted autoplay></video>
+      <div class="cam-pip" id="camPip" style="display:none"><img id="camPipImg" alt=""></div>
+      <div class="cam-step" id="camStep"></div>
+      <div class="cam-zoom" id="camZoom"></div>
+    </div>
+    <div class="cam-bar" id="camBar">
+      <button class="cam-txt" id="camCancel" onclick="closeCamera()">Cancel</button>
+      <button class="cam-shutter" id="camShot" onclick="camShoot()" aria-label="Take photo"></button>
+      <button class="cam-txt" id="camRetake" onclick="camRetake()" style="visibility:hidden">Retake</button>
+    </div>
+  </div>
+
+  <!-- ============ PHOTO VIEWER ============ -->
+  <div class="pv-wrap" id="pvWrap" onclick="if(event.target===this)closeViewer()">
+    <div class="pv-date" id="pvDate"></div>
+    <img id="pvImg" alt="">
+    <div class="pv-bar">
+      <button class="pill light" id="pvRetake" onclick="pvRetake()">Retake</button>
+      <button class="pill light" id="pvDel" onclick="pvDelete()">Delete</button>
+      <button class="pill" id="pvClose" onclick="closeViewer()">Close</button>
+    </div>
+  </div>
+
+  <canvas id="confetti"></canvas>
+  <div id="toast"></div>
+
+  <!-- ============ HABIT SHEET ============ -->
+  <div class="overlay" id="habitOverlay" onclick="if(event.target===this)closeHabitSheet()">
+    <div class="sheet">
+      <h3 id="lblHabitSheet">Edit habit</h3>
+      <div class="field">
+        <label id="lblHfA">I WILL ...</label>
+        <input id="hfA" type="text" placeholder="eat 4 fruits, every morning" autocomplete="off">
+      </div>
+      <div class="field" id="hfBWrap">
+        <label>SO THAT I CAN BECOME ...</label>
+        <input id="hfB" type="text" placeholder="a healthy person" autocomplete="off">
+      </div>
+      <div class="sheet-actions">
+        <button class="pill light" id="btnHCancel" onclick="closeHabitSheet()">Cancel</button>
+        <button class="pill" id="btnHSave" onclick="saveHabitSheet()">Save</button>
+      </div>
+      <button class="danger" id="btnHDel" style="display:none" onclick="delHabit()">Delete habit</button>
+    </div>
+  </div>
+
+  <!-- ============ TASK SHEET ============ -->
+  <div class="overlay" id="taskOverlay" onclick="if(event.target===this)closeTaskSheet()">
+    <div class="sheet">
+      <h3 id="sheetTitle">New Task</h3>
+      <div class="field">
+        <label id="lblFTitle">TITLE</label>
+        <input id="fTitle" type="text" placeholder="e.g. Social Media Design" autocomplete="off">
+      </div>
+      <div class="field">
+        <label id="lblFCat">CATEGORY</label>
+        <select id="fCat"></select>
+      </div>
+      <div class="f-2col">
+        <div class="field">
+          <label id="lblFDate">DATE</label>
+          <input id="fDate" type="date">
+        </div>
+        <div class="field">
+          <label id="lblFStart">START TIME</label>
+          <input id="fStart" type="time">
+        </div>
+      </div>
+      <div class="field">
+        <label id="lblFDur">DURATION (MINUTES)</label>
+        <input id="fDur" type="number" min="5" step="5" placeholder="30">
+      </div>
+      <div class="sheet-actions">
+        <button class="pill light" id="btnTCancel" onclick="closeTaskSheet()">Cancel</button>
+        <button class="pill" id="btnSaveTask" onclick="saveTask()">Save Task</button>
+      </div>
+      <button class="danger" id="fDelete" style="display:none" onclick="deleteTask()">Delete task</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ================= state ================= */
+const LS = 'dailyflow-v1';
+const defaultState = {
+  categories: [
+    {id:'c1', name:'Work',     color:'#C90038'},
+    {id:'c2', name:'Study',    color:'#111214'},
+    {id:'c3', name:'Workout',  color:'#E35C7E'},
+    {id:'c4', name:'Rest',     color:'#8A8F96'},
+    {id:'c5', name:'Creative', color:'#8E0027'},
+  ],
+  tasks: [],   // {id,title,catId,date,start,dur,doneMin,done}
+  logs:  [],   // {date, catId, min}
+  timers: {},  // taskId -> {total,endAt,left,running}
+  budgetCats: [
+    {id:'b1', name:'Food',      color:'#C90038'},
+    {id:'b2', name:'Shopping',  color:'#E35C7E'},
+    {id:'b3', name:'Transport', color:'#111214'},
+    {id:'b4', name:'Education', color:'#8A8F96'},
+    {id:'b5', name:'Other',     color:'#8A8F96'},
+  ],
+  budgets: {},   // 'YYYY-MM' -> {goal:number}
+  expenses: [],  // {id,date,catId,amount,note}
+  currency: '\u20A9',
+  photos: {},    // 'YYYY-MM-DD' -> dataURL
+};
+let S = load();
+if(!S.timers) S.timers = {};
+if(!S.budgetCats) S.budgetCats = JSON.parse(JSON.stringify(defaultState.budgetCats));
+if(!S.budgets) S.budgets = {};
+if(!S.expenses) S.expenses = [];
+if(!S.currency) S.currency = '\u20A9';
+if(!S.photos) S.photos = {};
+if(S.timer){ S.timers[S.timer.taskId]={total:S.timer.total,endAt:S.timer.endAt,left:S.timer.left,running:S.timer.running}; delete S.timer; }
+function load(){
+  try{ const d = JSON.parse(localStorage.getItem(LS)); if(d && d.categories) return d; }catch(e){}
+  return JSON.parse(JSON.stringify(defaultState));
+}
+function save(){ localStorage.setItem(LS, JSON.stringify(S)); }
+
+/* ================= language ================= */
+const L = {
+ en:{
+  gm:'Good Morning', ga:'Good Afternoon', ge:'Good Evening',
+  startDay:'START YOUR DAY',
+  completed:'{n} Task{s} Completed',
+  sum0:"You're all set \u2014 plan your day below",
+  sumAll:"You've completed today's plan \ud83c\udf89",
+  sumLeft:'{n} to go \u2014 keep the flow',
+  emptyTasks:'No tasks yet for this day.<br>Tap <b>+</b> to plan your first block.',
+  start:'Start', open:'\u23F1 Open', paused:'\u23F1 Paused',
+  monthView:'\u25BE Month view', weekView:'\u25B4 Week view',
+  more:' +{n} more',
+  focus:'Focus Session', remaining:'remaining',
+  pause:'\u25CF Pause', resume:'\u25B6 Resume', stop:'Stop', done:'Done \u2713',
+  yourTime:'Your Time', thisWeek:'This week', thisMonth:'This month',
+  last7:'last 7 days', last30:'last 30 days',
+  emptyStats:'No focus time yet.<br>Run a timer and your hours show up here.',
+  cats:'Categories', addCat:'+ Add category', newCat:'New category',
+  keepOne:'Keep at least one category.',
+  delCatConfirm:'Tasks and stats using this category will lose it. Delete anyway?',
+  habit:'Habit', totalRep:'Total repetitions', rate:'Completion rate', streak:'Longest streak',
+  editHabit:'\u270F\uFE0F Edit habit', editHabitTitle:'Edit habit',
+  addHabit:'Add habit', delHabit:'Delete habit',
+  keepOneHabit:'Keep at least one habit.',
+  delHabitConfirm:'Delete this habit and its records for the month?',
+  newTask:'New Task', editTask:'Edit Task',
+  fTitle:'TITLE', fCat:'CATEGORY', fDate:'DATE', fStart:'START TIME', fDur:'DURATION (MINUTES)',
+  cancel:'Cancel', saveTask:'Save Task', delTask:'Delete task', saveBtn:'Save',
+  album:'Snap &lt;3', albumCount:'{n} day{s} captured this month',
+  noFuture:'You cannot add a photo for a future day.',
+  todayOnly:'You can only shoot on today\u2019s date.',
+  shotBack:'1 / 2 \u00B7 Outward camera', shotFront:'2 / 2 \u00B7 Selfie camera',
+  camDenied:'Camera access is off.\\nAllow it in Settings \u203A Safari \u203A Camera, then try again.',
+  photoFull:'Storage is full \u2014 delete a few older photos and try again.',
+  delPhotoConfirm:'Delete this photo?',
+  retake:'Retake', deletePhoto:'Delete', closeBtn:'Close', cancel2:'Cancel',
+  addTask:'+ Add',
+  data:'DATA', exportBtn:'Back up my data', importBtn:'Restore from backup',
+  updateBtn:'Check for updates', exported:'Backup saved \u2713', exportFail:'Could not save the backup.',
+  importConfirm:'This replaces everything currently in the app. Continue?',
+  imported:'Backup restored \u2713', importFail:'That file could not be read.',
+  updating:'Refreshing\u2026', newVersion:'New version found \u2014 updating\u2026',
+  budget:'Budget', 'remaining$':'Remaining', spent:'spent', setBudget:'Tap to set a monthly budget',
+  byCat:'BY CATEGORY', recentExp:'RECENT EXPENSES', addCatBtn:'+ Add category',
+  addExpBtn:'+ Add expense', emptyExp:'No expenses yet this month.',
+  goalSheet:'Monthly budget', goalAmt:'TOTAL BUDGET', currency:'CURRENCY SYMBOL',
+  addExp:'Add expense', editExp:'Edit expense', efAmt:'AMOUNT', efCat:'CATEGORY',
+  efNote:'NOTE (OPTIONAL)', efDate:'DATE', delExp:'Delete expense',
+  delBgCatConfirm:'Expenses using this category will lose it. Delete anyway?',
+  viewChart:'\u25D4 View chart', chartSheet:'Where your money went', close:'Close',
+  limitSheet:'Category limit', limitName:'CATEGORY', limitAmt:'LIMIT (LEAVE EMPTY FOR NONE)',
+  setLimit:'Set limit', limit:'Limit', leftOf:'left of', overBy:'over by',
+  ofSpending:'of spending', unalloc:'Unallocated', overAlloc:'Over-allocated by',
+  expenses:'EXPENSES', emptyDay:'Nothing spent on this day.',
+  delCat:'Delete category', warn80:'\u26A0\uFE0F {n}% of your budget used',
+  warnOver:'\u26A0\uFE0F You are over budget this month',
+  days:['MON','TUE','WED','THU','FRI','SAT','SUN'],
+  daysShort:['MO','TU','WE','TH','FR','SA','SU'],
+  daysMin:['M','T','W','T','F','S','S'],
+  locale:'en-GB',
+ },
+ ko:{
+  gm:'\uc88b\uc740 \uc544\uce68', ga:'\uc88b\uc740 \uc624\ud6c4', ge:'\uc88b\uc740 \uc800\ub141',
+  startDay:'\uc624\ub298\uc758 \uacc4\ud68d',
+  completed:'\uc644\ub8cc\ud55c \uc77c {n}\uac1c',
+  sum0:'\uc624\ub298 \ud558\ub8e8\ub97c \uacc4\ud68d\ud574 \ubcf4\uc138\uc694',
+  sumAll:'\uc624\ub298 \uacc4\ud68d\uc744 \ubaa8\ub450 \uc644\ub8cc\ud588\uc5b4\uc694 \ud83c\udf89',
+  sumLeft:'{n}\uac1c \ub0a8\uc558\uc5b4\uc694 \u2014 \uc870\uae08\ub9cc \ub354!',
+  emptyTasks:'\uc544\uc9c1 \uc77c\uc815\uc774 \uc5c6\uc5b4\uc694.<br><b>+</b> \ubc84\ud2bc\uc73c\ub85c \uccab \uacc4\ud68d\uc744 \uc138\uc6cc\ubcf4\uc138\uc694.',
+  start:'\uc2dc\uc791', open:'\u23F1 \ubcf4\uae30', paused:'\u23F1 \uc77c\uc2dc\uc815\uc9c0',
+  monthView:'\u25BE \uc6d4\uac04 \ubcf4\uae30', weekView:'\u25B4 \uc8fc\uac04 \ubcf4\uae30',
+  more:' \uc678 {n}\uac1c',
+  focus:'\uc9d1\uc911 \uc2dc\uac04', remaining:'\ub0a8\uc740 \uc2dc\uac04',
+  pause:'\u25CF \uc77c\uc2dc\uc815\uc9c0', resume:'\u25B6 \uacc4\uc18d', stop:'\uc911\uc9c0', done:'\uc644\ub8cc \u2713',
+  yourTime:'\ub098\uc758 \uc2dc\uac04', thisWeek:'\uc774\ubc88 \uc8fc', thisMonth:'\uc774\ubc88 \ub2ec',
+  last7:'\ucd5c\uadfc 7\uc77c', last30:'\ucd5c\uadfc 30\uc77c',
+  emptyStats:'\uc544\uc9c1 \uae30\ub85d\uc774 \uc5c6\uc5b4\uc694.<br>\ud0c0\uc774\uba38\ub97c \uc2e4\ud589\ud558\uba74 \uc2dc\uac04\uc774 \uc313\uc5ec\uc694.',
+  cats:'\uce74\ud14c\uace0\ub9ac', addCat:'+ \uce74\ud14c\uace0\ub9ac \ucd94\uac00', newCat:'\uc0c8 \uce74\ud14c\uace0\ub9ac',
+  keepOne:'\uce74\ud14c\uace0\ub9ac\ub294 \ucd5c\uc18c 1\uac1c \ud544\uc694\ud574\uc694.',
+  delCatConfirm:'\uc774 \uce74\ud14c\uace0\ub9ac\ub97c \uc4f0\ub294 \uc77c\uc815/\uae30\ub85d\uc5d0\uc11c \uc0ac\ub77c\uc838\uc694. \uc0ad\uc81c\ud560\uae4c\uc694?',
+  habit:'\uc2b5\uad00', totalRep:'\ucd1d \ub2ec\uc131 \ud69f\uc218', rate:'\ub2ec\uc131\ub960', streak:'\ucd5c\uc7a5 \uc5f0\uc18d',
+  editHabit:'\u270F\uFE0F \uc2b5\uad00 \uc218\uc815', editHabitTitle:'\uc2b5\uad00 \uc218\uc815',
+  addHabit:'\uc2b5\uad00 \ucd94\uac00', delHabit:'\uc2b5\uad00 \uc0ad\uc81c',
+  keepOneHabit:'\uc2b5\uad00\uc740 \ucd5c\uc18c 1\uac1c \ud544\uc694\ud574\uc694.',
+  delHabitConfirm:'\uc774 \uc2b5\uad00\uacfc \uc774\ubc88 \ub2ec \uae30\ub85d\uc744 \uc0ad\uc81c\ud560\uae4c\uc694?',
+  newTask:'\uc0c8 \uc77c\uc815', editTask:'\uc77c\uc815 \uc218\uc815',
+  fTitle:'\uc81c\ubaa9', fCat:'\uce74\ud14c\uace0\ub9ac', fDate:'\ub0a0\uc9dc', fStart:'\uc2dc\uc791 \uc2dc\uac04', fDur:'\uc2dc\uac04 (\ubd84)',
+  cancel:'\ucde8\uc18c', saveTask:'\uc800\uc7a5', delTask:'\uc77c\uc815 \uc0ad\uc81c', saveBtn:'\uc800\uc7a5',
+  album:'Snap &lt;3', albumCount:'\uc774\ubc88 \ub2ec {n}\uc77c \uae30\ub85d\ud588\uc5b4\uc694',
+  noFuture:'\uc544\uc9c1 \uc624\uc9c0 \uc54a\uc740 \ub0a0\uc740 \ucd0c\uc601\ud560 \uc218 \uc5c6\uc5b4\uc694.',
+  todayOnly:'\uc624\ub298 \ub0a0\uc9dc\uc5d0\ub9cc \ucd2c\uc601\ud560 \uc218 \uc788\uc5b4\uc694.',
+  shotBack:'1 / 2 \u00B7 \ud6c4\uba74 \uce74\uba54\ub77c', shotFront:'2 / 2 \u00B7 \uc140\ud504 \uce74\uba54\ub77c',
+  camDenied:'\uce74\uba54\ub77c \uad8c\ud55c\uc774 \uaffc\uc838 \uc788\uc5b4\uc694.\\n\uc124\uc815 \u203A Safari \u203A \uce74\uba54\ub77c\uc5d0\uc11c \ud5c8\uc6a9\ud574\uc8fc\uc138\uc694.',
+  photoFull:'\uc800\uc7a5 \uacf5\uac04\uc774 \uac00\ub4dd \ucc3c\uc5b4\uc694 \u2014 \uc624\ub798\ub41c \uc0ac\uc9c4\uc744 \uba87 \uc7a5 \uc9c0\uc6b0\uace0 \ub2e4\uc2dc \uc2dc\ub3c4\ud574\uc8fc\uc138\uc694.',
+  delPhotoConfirm:'\uc774 \uc0ac\uc9c4\uc744 \uc0ad\uc81c\ud560\uae4c\uc694?',
+  retake:'\ub2e4\uc2dc \ucc0d\uae30', deletePhoto:'\uc0ad\uc81c', closeBtn:'\ub2eb\uae30', cancel2:'\ucde8\uc18c',
+  addTask:'+ \ucd94\uac00',
+  data:'\ub370\uc774\ud130', exportBtn:'\ub370\uc774\ud130 \ubc31\uc5c5\ud558\uae30', importBtn:'\ubc31\uc5c5\uc5d0\uc11c \ubcf5\uc6d0\ud558\uae30',
+  updateBtn:'\uc5c5\ub370\uc774\ud2b8 \ud655\uc778', exported:'\ubc31\uc5c5 \uc800\uc7a5\ub428 \u2713', exportFail:'\ubc31\uc5c5\uc744 \uc800\uc7a5\ud558\uc9c0 \ubabb\ud588\uc5b4\uc694.',
+  importConfirm:'\ud604\uc7ac \uc571\uc758 \ubaa8\ub4e0 \ub370\uc774\ud130\uac00 \ub300\uccb4\ub429\ub2c8\ub2e4. \uacc4\uc18d\ud560\uae4c\uc694?',
+  imported:'\ubcf5\uc6d0 \uc644\ub8cc \u2713', importFail:'\ud30c\uc77c\uc744 \uc77d\uc744 \uc218 \uc5c6\uc5b4\uc694.',
+  updating:'\uc0c8\ub85c\uace0\uce68 \uc911\u2026', newVersion:'\uc0c8 \ubc84\uc804 \ubc1c\uacac \u2014 \uc5c5\ub370\uc774\ud2b8 \uc911\u2026',
+  budget:'\uac00\uacc4\ubd80', 'remaining$':'\ub0a8\uc740 \uc608\uc0b0', spent:'\uc9c0\ucd9c', setBudget:'\ud0ed\ud574\uc11c \uc6d4 \uc608\uc0b0\uc744 \uc124\uc815\ud558\uc138\uc694',
+  byCat:'\uce74\ud14c\uace0\ub9ac\ubcc4', recentExp:'\ucd5c\uadfc \uc9c0\ucd9c', addCatBtn:'+ \uce74\ud14c\uace0\ub9ac \ucd94\uac00',
+  addExpBtn:'+ \uc9c0\ucd9c \ucd94\uac00', emptyExp:'\uc774\ubc88 \ub2ec \uc9c0\ucd9c \uae30\ub85d\uc774 \uc5c6\uc5b4\uc694.',
+  goalSheet:'\uc6d4 \uc608\uc0b0', goalAmt:'\ucd1d \uc608\uc0b0', currency:'\ud654\ud3d0 \uae30\ud638',
+  addExp:'\uc9c0\ucd9c \ucd94\uac00', editExp:'\uc9c0\ucd9c \uc218\uc815', efAmt:'\uae08\uc561', efCat:'\uce74\ud14c\uace0\ub9ac',
+  efNote:'\uba54\ubaa8 (\uc120\ud0dd)', efDate:'\ub0a0\uc9dc', delExp:'\uc9c0\ucd9c \uc0ad\uc81c',
+  delBgCatConfirm:'\uc774 \uce74\ud14c\uace0\ub9ac\ub97c \uc4f0\ub294 \uc9c0\ucd9c \uae30\ub85d\uc5d0\uc11c \uc0ac\ub77c\uc838\uc694. \uc0ad\uc81c\ud560\uae4c\uc694?',
+  viewChart:'\u25D4 \ucc28\ud2b8 \ubcf4\uae30', chartSheet:'\uc5b4\ub514\uc5d0 \uc37c\uc744\uae4c', close:'\ub2eb\uae30',
+  limitSheet:'\uce74\ud14c\uace0\ub9ac \ud55c\ub3c4', limitName:'\uce74\ud14c\uace0\ub9ac', limitAmt:'\ud55c\ub3c4 (\ube44\uc6cc\ub450\uba74 \uc124\uc815 \uc548 \ud568)',
+  setLimit:'\ud55c\ub3c4 \uc124\uc815', limit:'\ud55c\ub3c4', leftOf:'\ub0a8\uc74c \u00B7', overBy:'\ucd08\uacfc \u00B7',
+  ofSpending:'\ube44\uc911', unalloc:'\ubbf8\ubc30\uc815', overAlloc:'\ubc30\uc815 \ucd08\uacfc',
+  expenses:'\uc9c0\ucd9c \ub0b4\uc5ed', emptyDay:'\uc774\ub0a0 \uc9c0\ucd9c\uc774 \uc5c6\uc5b4\uc694.',
+  delCat:'\uce74\ud14c\uace0\ub9ac \uc0ad\uc81c', warn80:'\u26A0\uFE0F \uc608\uc0b0\uc758 {n}%\ub97c \uc37c\uc5b4\uc694',
+  warnOver:'\u26A0\uFE0F \uc774\ubc88 \ub2ec \uc608\uc0b0\uc744 \ucd08\uacfc\ud588\uc5b4\uc694',
+  days:['\uc6d4','\ud654','\uc218','\ubaa9','\uae08','\ud1a0','\uc77c'],
+  daysShort:['\uc6d4','\ud654','\uc218','\ubaa9','\uae08','\ud1a0','\uc77c'],
+  daysMin:['\uc6d4','\ud654','\uc218','\ubaa9','\uae08','\ud1a0','\uc77c'],
+  locale:'ko-KR',
+ },
+};
+function tr(k){ const d = L[S.lang||'en']; return (d && d[k]!==undefined) ? d[k] : L.en[k]; }
+function trf(k, n){ return tr(k).replace('{n}', n).replace('{s}', n===1?'':'s'); }
+function setLang(l){
+  S.lang = l; save(); applyStatic();
+  if(document.getElementById('v-home').classList.contains('active')) renderHome();
+  if(document.getElementById('v-stats').classList.contains('active')) renderStats();
+  if(document.getElementById('v-habit').classList.contains('active')) renderHabit();
+  if(document.getElementById('v-budget').classList.contains('active')) renderBudget();
+}
+function applyStatic(){
+  const set = (id,k)=>{ const el=document.getElementById(id); if(el) el.innerHTML = tr(k); };
+  set('lblStartDay','startDay'); set('lblFocus','focus');
+  set('btnStop','stop'); set('btnDone','done');
+  set('segW','thisWeek'); set('segM','thisMonth');
+  set('lblYourTime','yourTime'); set('lblCats','cats'); set('btnAddCat','addCat');
+  set('lblHabit','habit'); set('lblHabitSheet','editHabitTitle'); set('btnHDel','delHabit');
+  set('btnHCancel','cancel'); set('btnHSave','saveBtn');
+  set('lblFTitle','fTitle'); set('lblFCat','fCat'); set('lblFDate','fDate');
+  set('lblFStart','fStart'); set('lblFDur','fDur');
+  set('btnTCancel','cancel'); set('btnSaveTask','saveTask'); set('fDelete','delTask');
+  set('lblBudget','budget'); set('lblSpent','spent'); set('lblByCat','byCat');
+  set('lblRecent','recentExp'); set('btnAddBgCat','addCatBtn'); set('btnAddExp','addExpBtn');
+  set('lblGoalSheet','goalSheet'); set('lblGoalAmt','goalAmt'); set('lblCurrency','currency');
+  set('btnGCancel','cancel'); set('btnGSave','saveBtn');
+  set('lblEfAmt','efAmt'); set('lblEfCat','efCat'); set('lblEfNote','efNote');
+  set('lblEfDate','efDate'); set('btnECancel','cancel'); set('btnESave','saveBtn');
+  set('btnEDel','delExp');
+  set('btnChart','viewChart'); set('lblChartSheet','chartSheet'); set('btnChartClose','close');
+  set('lblLimitSheet','limitSheet'); set('lblLimitName','limitName'); set('lblLimitAmt','limitAmt');
+  set('btnLCancel','cancel'); set('btnLSave','saveBtn');
+  set('lblRecent','expenses'); set('btnLDel','delCat');
+  set('lblAlbum','album'); set('btnAddTask','addTask');
+  set('camCancel','cancel2'); set('camRetake','retake');
+  set('pvRetake','retake'); set('pvDel','deletePhoto'); set('pvClose','closeBtn');
+  set('lblData','data'); set('lblExport','exportBtn');
+  set('lblImport','importBtn'); set('lblUpdate','updateBtn');
+  const lang = S.lang||'en';
+  const le=document.getElementById('langEn'), lk=document.getElementById('langKo');
+  if(le) le.className = lang==='en' ? 'pill' : 'pill light';
+  if(lk) lk.className = lang==='ko' ? 'pill' : 'pill light';
+}
+const uid = ()=> Math.random().toString(36).slice(2,9);
+const todayStr = ()=> toDS(new Date());
+function toDS(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+let selDate = todayStr();
+let statsMode = 'week';
+let editId = null;
+
+/* ================= views ================= */
+function go(v){
+  document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
+  document.getElementById('v-'+v).classList.add('active');
+  document.getElementById('nav-home').classList.toggle('on', v==='home');
+  document.getElementById('nav-stats').classList.toggle('on', v==='stats');
+  document.getElementById('nav-habit').classList.toggle('on', v==='habit');
+  document.getElementById('nav-budget').classList.toggle('on', v==='budget');
+  document.getElementById('nav-album').classList.toggle('on', v==='album');
+  if(v==='home') renderHome();
+  if(v==='stats') renderStats();
+  if(v==='cats') renderCats();
+  if(v==='habit') renderHabit();
+  if(v==='budget') renderBudget();
+  if(v==='album') renderAlbum();
+}
+
+/* ================= home ================= */
+function renderHome(){
+  const h = new Date().getHours();
+  document.getElementById('greeting').textContent =
+    h<12 ? tr('gm') : h<18 ? tr('ga') : tr('ge');
+
+  // week strip (Mon–Sun of current week)
+  const now = new Date();
+  const mon = new Date(now); mon.setDate(now.getDate() - ((now.getDay()+6)%7));
+  const names = tr('days');
+  let html = '';
+  for(let i=0;i<7;i++){
+    const d = new Date(mon); d.setDate(mon.getDate()+i);
+    const ds = toDS(d);
+    html += `<div class="day ${ds===todayStr()?'today':''} ${ds===selDate?'sel':''}" onclick="selDay('${ds}')">
+      <span class="lbl">${names[i]}</span><span class="num">${d.getDate()}</span></div>`;
+  }
+  document.getElementById('weekStrip').innerHTML = html;
+
+  // week / month calendar switch
+  document.getElementById('weekStrip').style.display = calMode==='week' ? 'flex' : 'none';
+  document.getElementById('monthGrid').style.display = calMode==='month' ? 'block' : 'none';
+  document.getElementById('calToggle').textContent = calMode==='week' ? tr('monthView') : tr('weekView');
+  if(calMode==='month') renderMonth();
+
+  // running timer banner
+  const bn = document.getElementById('runBanner');
+  const rIds = Object.keys(S.timers||{});
+  if(rIds.length>0){
+    const ft = S.tasks.find(x=>x.id===rIds[0]);
+    const extra = rIds.length>1 ? trf('more', rIds.length-1) : '';
+    bn.style.display = 'flex';
+    bn.innerHTML = `<span>⏱</span><span class="rb-name">${ft?esc(ft.title):'Focus'}${extra}</span><span class="t"></span>`;
+    tick();
+  } else bn.style.display = 'none';
+
+  const dObj = new Date(selDate+'T00:00');
+  document.getElementById('dateLabel').textContent =
+    dObj.toLocaleDateString(tr('locale'),{day:'numeric',month:'short'});
+
+  const tasks = S.tasks.filter(t=>t.date===selDate).sort((a,b)=>(a.start||'').localeCompare(b.start||''));
+  const doneN = tasks.filter(t=>t.done).length;
+  document.getElementById('sumTitle').textContent = trf('completed', doneN);
+  document.querySelector('.summary p').textContent =
+    tasks.length===0 ? tr('sum0') :
+    doneN===tasks.length ? tr('sumAll') :
+    trf('sumLeft', tasks.length-doneN);
+
+  const list = document.getElementById('taskList');
+  if(tasks.length===0){
+    list.innerHTML = `<div class="empty">${tr('emptyTasks')}</div>`;
+    return;
+  }
+  list.innerHTML = tasks.map(t=>{
+    const c = cat(t.catId);
+    const rt = S.timers[t.id];
+    const btn = t.done ? '' :
+      rt
+        ? `<button class="pill" onclick="openTimerView('${t.id}')">${rt.running?tr('open'):tr('paused')}</button>`
+        : `<button class="pill" onclick="startTimer('${t.id}')">${tr('start')}</button>`;
+    return `<div class="task ${t.done?'done':''}">
+      <div class="bar" style="background:${c.color}"></div>
+      <div class="check" onclick="toggleDone('${t.id}')">${t.done?'✓':''}</div>
+      <div class="info" onclick="openTaskSheet('${t.id}')">
+        <h4>${esc(t.title)}</h4>
+        <p><span class="cat-tag" style="color:${c.color}">${esc(c.name)}</span>
+           · ${fmtTime(t.start)} · ${t.dur} m</p>
+      </div>
+      ${btn}
+    </div>`;
+  }).join('');
+}
+function selDay(ds){ selDate = ds; renderHome(); }
+let calMode = 'week';
+let calMonth = null;
+function toggleCal(){
+  calMode = calMode==='week' ? 'month' : 'week';
+  if(calMode==='month') calMonth = new Date(selDate+'T00:00');
+  renderHome();
+}
+function shiftMonth(n){ calMonth.setMonth(calMonth.getMonth()+n); renderHome(); }
+function renderMonth(){
+  if(!calMonth) calMonth = new Date(selDate+'T00:00');
+  const y = calMonth.getFullYear(), m = calMonth.getMonth();
+  const startIdx = (new Date(y,m,1).getDay()+6)%7; // Monday first
+  const dim = new Date(y,m+1,0).getDate();
+  const names = tr('daysShort');
+  let html = `<div class="month-head">
+    <button onclick="shiftMonth(-1)">‹</button>
+    <b>${calMonth.toLocaleDateString(tr('locale'),{month:'long',year:'numeric'})}</b>
+    <button onclick="shiftMonth(1)">›</button></div><div class="mg">`;
+  html += names.map(n=>`<div class="wd">${n}</div>`).join('');
+  for(let i=0;i<startIdx;i++) html += `<div></div>`;
+  for(let d=1;d<=dim;d++){
+    const ds = y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    const has = S.tasks.some(t=>t.date===ds);
+    html += `<div class="cell ${ds===todayStr()?'today':''} ${ds===selDate?'sel':''}"
+      onclick="selDay('${ds}')">${d}${has?'<span class="tick"></span>':''}</div>`;
+  }
+  html += `</div>`;
+  document.getElementById('monthGrid').innerHTML = html;
+}
+function cat(id){ return S.categories.find(c=>c.id===id) || {name:'—',color:'#B6BBC1'}; }
+function esc(s){ return (s||'').replace(/[&<>"]/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
+function fmtTime(t){
+  if(!t) return '—';
+  const [h,m] = t.split(':').map(Number);
+  const ap = h>=12?'PM':'AM'; const hh = h%12||12;
+  return `${hh}:${String(m).padStart(2,'0')} ${ap}`;
+}
+function toggleDone(id){
+  const t = S.tasks.find(x=>x.id===id); if(!t) return;
+  t.done = !t.done;
+  if(t.done && (t.doneMin||0)===0){ addLog(t.date, t.catId, t.dur); t.doneMin = t.dur; }
+  save(); renderHome();
+  if(t.done) celebrate();
+}
+
+/* ================= task sheet ================= */
+function openTaskSheet(id){
+  editId = id || null;
+  const t = id ? S.tasks.find(x=>x.id===id) : null;
+  document.getElementById('sheetTitle').textContent = t ? tr('editTask') : tr('newTask');
+  document.getElementById('fDelete').style.display = t ? 'block' : 'none';
+  document.getElementById('fTitle').value = t ? t.title : '';
+  document.getElementById('fDate').value = t ? t.date : selDate;
+  document.getElementById('fStart').value = t ? (t.start||'09:00') : '09:00';
+  document.getElementById('fDur').value = t ? t.dur : 30;
+  const sel = document.getElementById('fCat');
+  sel.innerHTML = S.categories.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  if(t) sel.value = t.catId;
+  document.getElementById('taskOverlay').classList.add('open');
+}
+function closeTaskSheet(){ document.getElementById('taskOverlay').classList.remove('open'); }
+function saveTask(){
+  const title = document.getElementById('fTitle').value.trim();
+  if(!title){ document.getElementById('fTitle').focus(); return; }
+  const data = {
+    title,
+    catId: document.getElementById('fCat').value,
+    date:  document.getElementById('fDate').value || todayStr(),
+    start: document.getElementById('fStart').value,
+    dur:   Math.max(5, parseInt(document.getElementById('fDur').value)||30),
+  };
+  if(editId){
+    Object.assign(S.tasks.find(x=>x.id===editId), data);
+  } else {
+    S.tasks.push({id:uid(), ...data, doneMin:0, done:false});
+  }
+  save(); closeTaskSheet(); selDate = data.date; go('home');
+}
+function deleteTask(){
+  S.tasks = S.tasks.filter(x=>x.id!==editId);
+  save(); closeTaskSheet(); renderHome();
+}
+
+/* ================= timer ================= */
+/* Multiple timers can run at once. Each lives in S.timers[taskId] with an
+   absolute end timestamp, so they keep counting across views, screen lock,
+   and app restarts. The timer screen shows whichever task you opened. */
+const RING_C = 2*Math.PI*118;
+let tIv = null;
+let viewTaskId = null;   // task currently shown on the timer screen
+
+function timers(){ if(!S.timers) S.timers = {}; return S.timers; }
+function runningCount(){ return Object.keys(timers()).length; }
+
+function startTimer(id){
+  const t = S.tasks.find(x=>x.id===id); if(!t) return;
+  if(timers()[id]){ openTimerView(id); return; }   // already running → reopen, never reset
+  timers()[id] = {total:t.dur*60, endAt:Date.now()+t.dur*60000, left:t.dur*60, running:true};
+  save(); openTimerView(id);
+}
+function openTimerView(id){
+  if(!id){ // banner tap: open the first running timer
+    id = Object.keys(timers())[0];
+    if(!id){ go('home'); return; }
+  }
+  const T = timers()[id]; if(!T){ go('home'); return; }
+  const t = S.tasks.find(x=>x.id===id);
+  if(!t){ delete timers()[id]; save(); go('home'); return; }
+  viewTaskId = id;
+  const c = cat(t.catId);
+  document.getElementById('tTitle').textContent = t.title;
+  document.getElementById('tCat').innerHTML =
+    `<span class="c-dot" style="background:${c.color}"></span>${esc(c.name)}`;
+  const [h,m] = (t.start||'09:00').split(':').map(Number);
+  const end = new Date(); end.setHours(h, m+t.dur);
+  document.getElementById('tRange').textContent =
+    `${fmtTime(t.start)} – ${fmtTime(String(end.getHours()).padStart(2,'0')+':'+String(end.getMinutes()).padStart(2,'0'))}`;
+  document.getElementById('tToggle').textContent = T.running ? tr('pause') : tr('resume');
+  document.getElementById('tSub').textContent = tr('remaining');
+  go('timer'); startTicking();
+}
+function startTicking(){
+  if(tIv) clearInterval(tIv);
+  tick(); tIv = setInterval(tick, 1000);
+}
+function curLeft(T){
+  if(!T) return 0;
+  return T.running ? Math.max(0, Math.round((T.endAt - Date.now())/1000)) : T.left;
+}
+function fmtClock(left){
+  const mm = Math.floor(left/60), ss = left%60;
+  return left>=3600
+    ? `${Math.floor(mm/60)}:${String(mm%60).padStart(2,'0')}:${String(ss).padStart(2,'0')}`
+    : `${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
+}
+function tick(){
+  const ids = Object.keys(timers());
+  if(ids.length===0){ if(tIv) clearInterval(tIv); return; }
+
+  // finish any timer that has reached zero (even ones not on screen)
+  ids.forEach(id=>{
+    const T = timers()[id];
+    if(T.running && curLeft(T)===0) finishTimer(id, true, true);
+  });
+
+  // update the timer screen for the task being viewed
+  const T = viewTaskId ? timers()[viewTaskId] : null;
+  if(T){
+    const left = curLeft(T);
+    document.getElementById('tClock').textContent = fmtClock(left);
+    document.getElementById('ringFg').style.strokeDashoffset = RING_C*(left/T.total);
+  }
+
+  // update banner countdown (first running timer)
+  const bn = document.getElementById('runBanner');
+  if(bn && bn.style.display!=='none'){
+    const firstId = Object.keys(timers())[0];
+    const tEl = bn.querySelector('.t');
+    if(tEl && firstId) tEl.textContent = fmtClock(curLeft(timers()[firstId]));
+  }
+}
+function toggleTimer(){
+  const T = viewTaskId ? timers()[viewTaskId] : null; if(!T) return;
+  if(T.running){ T.left = curLeft(T); T.running = false; }
+  else { T.endAt = Date.now() + T.left*1000; T.running = true; }
+  save();
+  document.getElementById('tToggle').textContent = T.running ? tr('pause') : tr('resume');
+  renderHomeBannerSafe();
+}
+function finishTimer(id, markDone, timeUp){
+  const T = timers()[id]; if(!T) return;
+  const t = S.tasks.find(x=>x.id===id);
+  const spentMin = Math.round((T.total - curLeft(T))/60);
+  if(t && spentMin>0){
+    addLog(t.date, t.catId, spentMin);
+    t.doneMin = (t.doneMin||0) + spentMin;
+  }
+  if(t && markDone) t.done = true;
+  delete timers()[id];
+  save();
+  if(timeUp && navigator.vibrate) navigator.vibrate([200,100,200]);
+  if(id===viewTaskId){
+    viewTaskId = null;
+    if(document.getElementById('v-timer').classList.contains('active')) go('home');
+  }
+  renderHomeBannerSafe();
+}
+function stopTimer(markDone){
+  if(!viewTaskId){ go('home'); return; }
+  finishTimer(viewTaskId, markDone, false);
+  go('home');
+}
+function renderHomeBannerSafe(){
+  if(document.getElementById('v-home').classList.contains('active')) renderHome();
+}
+/* catch up instantly when the app comes back to foreground */
+document.addEventListener('visibilitychange', ()=>{
+  if(!document.hidden && runningCount()>0){ tick(); }
+});
+function addLog(date, catId, min){
+  const row = S.logs.find(l=>l.date===date && l.catId===catId);
+  if(row) row.min += min; else S.logs.push({date, catId, min});
+}
+
+/* ================= habit ================= */
+function monthKey(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+let habitMonth = monthKey(new Date());
+let habitIdx = 0;          // which habit slide is showing
+let editHabitId = null;    // habit being edited in the sheet
+
+function habits(){ if(!S.habits) S.habits = {}; return S.habits; }
+/* Returns the array of habits for the month, migrating the old single-habit
+   shape {a,b,k,days} into [{id,a,b,k,days}] the first time it is seen. */
+function monthHabits(){
+  const h = habits();
+  let m = h[habitMonth];
+  if(!m) m = h[habitMonth] = [];
+  if(!Array.isArray(m)){                      // migrate legacy single habit
+    m = h[habitMonth] = [{id:uid(), a:m.a||'', b:m.b||'', k:m.k||'', days:m.days||{}}];
+  }
+  if(m.length===0) m.push({id:uid(), a:'', b:'', k:'', days:{}});
+  return m;
+}
+function curHabit(){
+  const m = monthHabits();
+  if(habitIdx >= m.length) habitIdx = m.length-1;
+  if(habitIdx < 0) habitIdx = 0;
+  return m[habitIdx];
+}
+function habitById(id){ return monthHabits().find(x=>x.id===id); }
+function shiftHabitMonth(n){
+  const [y,m] = habitMonth.split('-').map(Number);
+  habitMonth = monthKey(new Date(y, m-1+n, 1));
+  habitIdx = 0;
+  renderHabit();
+}
+function addHabit(){
+  const m = monthHabits();
+  const nh = {id:uid(), a:'', b:'', k:'', days:{}};
+  m.push(nh); habitIdx = m.length-1;
+  save(); renderHabit(); openHabitSheet(nh.id);
+}
+function delHabit(){
+  const m = monthHabits();
+  if(m.length<=1){ alert(tr('keepOneHabit')); return; }
+  if(!confirm(tr('delHabitConfirm'))) return;
+  const i = m.findIndex(x=>x.id===editHabitId);
+  if(i>=0) m.splice(i,1);
+  if(habitIdx>=m.length) habitIdx = m.length-1;
+  closeHabitSheet(); save(); renderHabit();
+}
+function selHabit(i){
+  habitIdx = i;
+  const tk = document.getElementById('hbTrack');
+  if(tk) tk.scrollTo({left: i*tk.clientWidth, behavior:'smooth'});
+  renderDots();
+}
+/* --- sheet --- */
+function openHabitSheet(id){
+  editHabitId = id || curHabit().id;
+  const h = habitById(editHabitId) || curHabit();
+  const ko = (S.lang||'en')==='ko';
+  document.getElementById('lblHfA').textContent = ko ? '\uc2b5\uad00' : 'I WILL ...';
+  document.getElementById('hfA').placeholder = ko ? '\uc608: \ub9e4\uc77c \ubb3c 1L \ub9c8\uc2dc\uae30' : 'eat 4 fruits, every morning';
+  document.getElementById('hfA').value = ko ? (h.k||'') : (h.a||'');
+  document.getElementById('hfBWrap').style.display = ko ? 'none' : 'block';
+  if(!ko) document.getElementById('hfB').value = h.b || '';
+  document.getElementById('btnHDel').style.display = monthHabits().length>1 ? 'block' : 'none';
+  document.getElementById('habitOverlay').classList.add('open');
+}
+function closeHabitSheet(){ document.getElementById('habitOverlay').classList.remove('open'); }
+function saveHabitSheet(){
+  const h = habitById(editHabitId) || curHabit();
+  if((S.lang||'en')==='ko'){
+    h.k = document.getElementById('hfA').value.trim();
+  } else {
+    h.a = document.getElementById('hfA').value.trim();
+    h.b = document.getElementById('hfB').value.trim();
+  }
+  save(); closeHabitSheet(); renderHabit();
+}
+function toggleHabitDay(hid, d){
+  const h = habitById(hid); if(!h) return;
+  let justDone = false;
+  if(h.days[d]) delete h.days[d]; else { h.days[d] = true; justDone = true; }
+  save(); renderHabit();
+  if(justDone) celebrate();
+}
+/* --- render --- */
+function renderHabit(){
+  const [y,m] = habitMonth.split('-').map(Number);
+  const dim = new Date(y, m, 0).getDate();
+  const list = monthHabits();
+  const monthName = new Date(y, m-1, 1).toLocaleDateString(tr('locale'),{month:'long',year:'numeric'});
+  document.getElementById('hbMonth').textContent = monthName.toUpperCase();
+
+  const nowK = monthKey(new Date());
+  const today = new Date().getDate();
+  const startIdx = (new Date(y, m-1, 1).getDay()+6)%7;
+  const dayNames = tr('daysMin');
+  const ko = (S.lang||'en')==='ko';
+
+  document.getElementById('hbTrack').innerHTML = list.map(h=>{
+    // sentence
+    const sentence = ko
+      ? `${m}\uc6d4 \uc2b5\uad00 : <span class="hb-blank" data-ph="\uc790\uc720\ub86d\uac8c \uc801\uc5b4\ubcf4\uc138\uc694">${esc(h.k||'')}</span>`
+      : `I will <span class="hb-blank" data-ph="eat 4 fruits, every morning">${esc(h.a||'')}</span> so that I can become <span class="hb-blank" data-ph="a healthy person">${esc(h.b||'')}</span>`;
+
+    // grid
+    let g = dayNames.map(n=>`<div class="wd">${n}</div>`).join('');
+    for(let i=0;i<startIdx;i++) g += `<div class="hb-cell off"></div>`;
+    for(let d=1;d<=dim;d++){
+      const isToday = habitMonth===nowK && d===today;
+      g += `<div class="hb-cell ${h.days[d]?'on':''} ${isToday?'today':''}"
+        onclick="toggleHabitDay('${h.id}',${d})"></div>`;
+    }
+
+    const done = Object.keys(h.days).length;
+    const elapsed = habitMonth===nowK ? today : (habitMonth<nowK ? dim : 0);
+    const rate = elapsed>0 ? Math.min(100, Math.round(done/elapsed*100))+'%' : '\u2014';
+    let best=0, cur=0;
+    for(let d=1;d<=dim;d++){ if(h.days[d]){ cur++; best=Math.max(best,cur); } else cur=0; }
+
+    return `<div class="hb-slide">
+      <div class="hb-sentence" onclick="openHabitSheet('${h.id}')">${sentence}</div>
+      <div class="hb-actions">
+        <button class="pill light" onclick="openHabitSheet('${h.id}')">${tr('editHabit')}</button>
+      </div>
+      <div class="hb-card">
+        <h4>${tr('totalRep')}</h4>
+        <div class="since">${monthName}</div>
+        <div class="big">${done}</div>
+        <div class="hb-grid">${g}</div>
+      </div>
+      <div class="hb-stats">
+        <div class="hb-card">
+          <h5>${tr('rate')}</h5>
+          <div class="n">${rate}</div>
+        </div>
+        <div class="hb-card">
+          <h5>${tr('streak')}</h5>
+          <div class="n">${best} <span class="drop">\u25CF</span></div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  renderDots();
+  const tk = document.getElementById('hbTrack');
+  if(tk){
+    tk.scrollLeft = habitIdx * tk.clientWidth;
+    if(!tk._bound){
+      tk._bound = true;
+      tk.addEventListener('scroll', ()=>{
+        clearTimeout(tk._st);
+        tk._st = setTimeout(()=>{
+          const i = Math.round(tk.scrollLeft / Math.max(1, tk.clientWidth));
+          if(i!==habitIdx){ habitIdx = i; renderDots(); }
+        }, 90);
+      });
+    }
+  }
+}
+function renderDots(){
+  const list = monthHabits();
+  document.getElementById('hbDots').innerHTML =
+    list.map((h,i)=>`<i class="${i===habitIdx?'on':''}" onclick="selHabit(${i})"></i>`).join('')
+    + `<button class="addh" onclick="addHabit()" title="${tr('addHabit')}">\uFF0B</button>`;
+}
+
+/* ================= stats ================= */
+function setStatsMode(m){
+  statsMode = m;
+  document.getElementById('segW').classList.toggle('on', m==='week');
+  document.getElementById('segM').classList.toggle('on', m==='month');
+  renderStats();
+}
+function renderStats(){
+  const days = statsMode==='week' ? 7 : 30;
+  const from = new Date(); from.setDate(from.getDate()-(days-1));
+  const fromS = toDS(from);
+  const totals = {};
+  S.logs.filter(l=>l.date>=fromS).forEach(l=>{ totals[l.catId]=(totals[l.catId]||0)+l.min; });
+  const rows = Object.entries(totals)
+    .map(([id,min])=>({c:cat(id), min}))
+    .sort((a,b)=>b.min-a.min);
+  const total = rows.reduce((s,r)=>s+r.min,0);
+
+  document.getElementById('statTotal').textContent =
+    total>=60 ? (total/60).toFixed(1).replace(/\.0$/,'')+'h' : total+'m';
+  document.getElementById('statLabel').textContent =
+    statsMode==='week' ? tr('last7') : tr('last30');
+
+  // donut with rounded gapped segments
+  const svg = document.getElementById('donutSvg');
+  const R=104, CX=130, CY=130, C=2*Math.PI*R, SW=30;
+  if(total===0){
+    svg.innerHTML = `<circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="#EDEFF1" stroke-width="${SW}"/>`;
+    document.getElementById('statLegend').innerHTML =
+      `<div class="empty">${tr('emptyStats')}</div>`;
+    return;
+  }
+  const gap = rows.length>1 ? 14 : 0;
+  let off = 0, parts = '';
+  rows.forEach(r=>{
+    const len = Math.max(4, (r.min/total)*(C - gap*rows.length));
+    parts += `<circle cx="${CX}" cy="${CY}" r="${R}" fill="none"
+      stroke="${r.c.color}" stroke-width="${SW}" stroke-linecap="round"
+      stroke-dasharray="${len} ${C-len}" stroke-dashoffset="${-off}"
+      transform="rotate(-90 ${CX} ${CY})"/>`;
+    off += len + gap;
+  });
+  svg.innerHTML = parts;
+
+  document.getElementById('statLegend').innerHTML = rows.map(r=>{
+    const h = Math.floor(r.min/60), m = r.min%60;
+    return `<div class="row">
+      <span class="c-dot" style="background:${r.c.color}"></span>
+      <span class="name">${esc(r.c.name)}</span>
+      <span class="val">${h?h+'h ':''}${m}m</span>
+      <span class="pct">${Math.round(r.min/total*100)}%</span>
+    </div>`;
+  }).join('');
+}
+
+/* ================= categories ================= */
+function renderCats(){
+  document.getElementById('catList').innerHTML = S.categories.map(c=>`
+    <div class="cat-row">
+      <input type="color" value="${c.color}" onchange="setCatColor('${c.id}',this.value)">
+      <input class="name" value="${esc(c.name)}" onchange="setCatName('${c.id}',this.value)">
+      <button class="del" onclick="delCat('${c.id}')">✕</button>
+    </div>`).join('');
+}
+function setCatColor(id,v){ cat(id).color=v; save(); }
+function setCatName(id,v){ if(v.trim()) cat(id).name=v.trim(); save(); }
+function delCat(id){
+  if(S.categories.length<=1){ alert(tr('keepOne')); return; }
+  const used = S.tasks.some(t=>t.catId===id) || S.logs.some(l=>l.catId===id);
+  if(used && !confirm(tr('delCatConfirm'))) return;
+  S.categories = S.categories.filter(c=>c.id!==id);
+  save(); renderCats();
+}
+function addCategory(){
+  const palette = ['#C90038','#111214','#E35C7E','#8E0027','#8A8F96','#5A0019','#B6BBC1'];
+  S.categories.push({id:uid(), name:tr('newCat'), color:palette[S.categories.length%palette.length]});
+  save(); renderCats();
+}
+
+/* ================= budget ================= */
+let budgetMonth = monthKey(new Date());
+function shiftBudgetMonth(n){
+  const [y,m] = budgetMonth.split('-').map(Number);
+  budgetMonth = monthKey(new Date(y, m-1+n, 1));
+  renderBudget();
+}
+function bcat(id){ return S.budgetCats.find(c=>c.id===id) || {name:'\u2014', color:'#B6BBC1'}; }
+function money(n){
+  return (S.currency||'\u20A9') + Math.round(n).toLocaleString(tr('locale'));
+}
+function monthExpenses(){
+  return S.expenses.filter(e => e.date.slice(0,7) === budgetMonth);
+}
+function renderBudget(){
+  const [y,m] = budgetMonth.split('-').map(Number);
+  document.getElementById('bgMonth').textContent =
+    new Date(y, m-1, 1).toLocaleDateString(tr('locale'),{month:'long',year:'numeric'}).toUpperCase();
+
+  const goal = (S.budgets[budgetMonth] && S.budgets[budgetMonth].goal) || 0;
+  const exps = monthExpenses();
+  const spent = exps.reduce((s,e)=>s+e.amount, 0);
+  const remain = goal - spent;
+
+  const rEl = document.getElementById('bgRemain');
+  rEl.textContent = goal>0 ? money(remain) : money(spent);
+  rEl.classList.toggle('warn', goal>0 && remain<0);
+  document.getElementById('lblRemaining').textContent = goal>0 ? tr('remaining$') : tr('spent');
+  document.getElementById('bgOf').textContent = goal>0
+    ? `${money(spent)} / ${money(goal)}`
+    : tr('setBudget');
+  const barEl = document.getElementById('bgBar');
+  const ratio = goal>0 ? spent/goal : 0;
+  barEl.style.width = goal>0 ? Math.min(100, ratio*100)+'%' : '0%';
+  barEl.style.background = ratio>=1 ? 'var(--accent)'
+    : ratio>=0.8 ? '#E35C7E'
+    : 'var(--accent-2)';
+
+  // limits per category live in S.budgets[month].limits
+  const bObj = S.budgets[budgetMonth] || {};
+  const limits = bObj.limits || {};
+
+  // totals per category (used by both list and chart)
+  const totals = {};
+  exps.forEach(e=>{ totals[e.catId] = (totals[e.catId]||0) + e.amount; });
+  lastTotals = totals; lastSpent = spent;
+
+  // unallocated line: goal minus the sum of category limits
+  const limSum = S.budgetCats.reduce((s,c)=> s + (limits[c.id]||0), 0);
+  const uEl = document.getElementById('bgUnalloc');
+  if(goal>0 && limSum>0){
+    const left = goal - limSum;
+    uEl.textContent = left>=0
+      ? `${tr('unalloc')} ${money(left)}`
+      : `${tr('overAlloc')} ${money(-left)}`;
+    uEl.style.color = left>=0 ? 'var(--muted)' : 'var(--accent)';
+  } else uEl.textContent = '';
+
+  // category tiles (horizontal scroll)
+  document.getElementById('bgCatList').innerHTML = S.budgetCats.map(c=>{
+    const v = totals[c.id] || 0;
+    const lim = limits[c.id] || 0;
+    const pctSpend = spent>0 ? Math.round(v/spent*100) : 0;
+    let cls = '', bar = '', foot = '';
+    if(lim>0){
+      const r = v/lim;
+      cls = r>=1 ? 'over' : (r>=0.8 ? 'warn' : '');
+      const col = r>=1 ? '#C90038' : (r>=0.8 ? '#E35C7E' : c.color);
+      bar = `<div class="mini"><i style="width:${Math.min(100,r*100)}%;background:${col}"></i></div>`;
+      foot = `<div class="lim">${tr('limit')} ${money(lim)}</div>`;
+    } else {
+      bar = `<div class="mini"><i style="width:${pctSpend}%;background:${c.color};opacity:.45"></i></div>`;
+      foot = `<div class="lim">${v>0 ? pctSpend+'%' : tr('setLimit')}</div>`;
+    }
+    return `<div class="bg-tile ${cls}" onclick="openLimitSheet('${c.id}')">
+      <div class="c-dot" style="background:${c.color}"></div>
+      <div class="nm">${esc(c.name)}</div>
+      <div class="amt">${money(v)}</div>
+      ${bar}${foot}
+    </div>`;
+  }).join('') + `<div class="bg-tile add" onclick="addBudgetCat()">+</div>`;
+
+  // expense day strip + selected day list
+  renderExpDays();
+}
+let expWeekStart = null;   // Monday of the week being shown
+let expSelDate = null;
+function initExpWeek(){
+  const base = new Date();
+  expWeekStart = new Date(base);
+  expWeekStart.setDate(base.getDate() - ((base.getDay()+6)%7));
+  expSelDate = todayStr();
+}
+function shiftExpWeek(n){
+  if(!expWeekStart) initExpWeek();
+  expWeekStart.setDate(expWeekStart.getDate() + n*7);
+  expSelDate = toDS(expWeekStart);
+  budgetMonth = expSelDate.slice(0,7);
+  renderBudget();
+}
+function selExpDay(ds){ expSelDate = ds; renderBudget(); }
+function renderExpDays(){
+  if(!expWeekStart) initExpWeek();
+  const names = tr('days');
+  const today = todayStr();
+  let html = '';
+  for(let i=0;i<7;i++){
+    const d = new Date(expWeekStart); d.setDate(expWeekStart.getDate()+i);
+    const ds = toDS(d);
+    const sum = S.expenses.filter(e=>e.date===ds).reduce((s,e)=>s+e.amount,0);
+    html += `<div class="exp-day ${ds===expSelDate?'sel':''} ${ds>today?'future':''}" onclick="selExpDay('${ds}')">
+      <div class="wd">${names[i]}</div>
+      <div class="dd">${d.getDate()}</div>
+      <div class="sm">${sum>0 ? '-'+money(sum) : ''}</div>
+    </div>`;
+  }
+  document.getElementById('expDays').innerHTML = html;
+
+  const wEnd = new Date(expWeekStart); wEnd.setDate(expWeekStart.getDate()+6);
+  document.getElementById('expWeekLbl').textContent =
+    `${expWeekStart.toLocaleDateString(tr('locale'),{day:'numeric',month:'short'})} \u2013 ${wEnd.toLocaleDateString(tr('locale'),{day:'numeric',month:'short'})}`;
+
+  const dayExps = S.expenses.filter(e=>e.date===expSelDate)
+    .sort((a,b)=> b.id.localeCompare(a.id));
+  document.getElementById('bgExpList').innerHTML = dayExps.length===0
+    ? `<div class="empty" style="padding:24px 20px">${tr('emptyDay')}</div>`
+    : dayExps.map(e=>{
+        const c = bcat(e.catId);
+        return `<div class="bg-exp" onclick="openExpenseSheet('${e.id}')">
+          <span class="c-dot" style="background:${c.color}"></span>
+          <div class="meta">
+            <h4>${esc(c.name)}</h4>
+            ${e.note ? `<p>${esc(e.note)}</p>` : ''}
+          </div>
+          <span class="amt">-${money(e.amount)}</span>
+        </div>`;
+      }).join('');
+}
+let lastTotals = {}, lastSpent = 0;
+function openChartSheet(){
+  renderBgChart();
+  document.getElementById('chartOverlay').classList.add('open');
+}
+function closeChartSheet(){ document.getElementById('chartOverlay').classList.remove('open'); }
+function renderBgChart(){
+  const totals = lastTotals, spent = lastSpent;
+  const rows = Object.entries(totals).map(([id,v])=>({c:bcat(id), v}))
+    .sort((a,b)=>b.v-a.v);
+  const svg = document.getElementById('bgDonut');
+  const R=92, CX=115, CY=115, C=2*Math.PI*R, SW=28;
+  if(spent===0){
+    svg.innerHTML = `<circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="#EDEFF1" stroke-width="${SW}"/>`;
+    document.getElementById('bgLegend').innerHTML = `<div class="empty">${tr('emptyExp')}</div>`;
+  } else {
+    const gap = rows.length>1 ? 12 : 0;
+    let off = 0, parts='';
+    rows.forEach(r=>{
+      const len = Math.max(4, (r.v/spent)*(C - gap*rows.length));
+      parts += `<circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="${r.c.color}"
+        stroke-width="${SW}" stroke-linecap="round"
+        stroke-dasharray="${len} ${C-len}" stroke-dashoffset="${-off}"
+        transform="rotate(-90 ${CX} ${CY})"/>`;
+      off += len + gap;
+    });
+    svg.innerHTML = parts;
+    document.getElementById('bgLegend').innerHTML = rows.map(r=>`
+      <div class="row">
+        <span class="c-dot" style="background:${r.c.color}"></span>
+        <span class="name">${esc(r.c.name)}</span>
+        <span class="val">${money(r.v)}</span>
+        <span class="pct">${Math.round(r.v/spent*100)}%</span>
+      </div>`).join('');
+  }
+  document.getElementById('bgSpentBig').textContent = money(spent);
+}
+/* --- category limit sheet --- */
+let limitCatId = null;
+function delBudgetCatFromSheet(){
+  const id = limitCatId;
+  if(S.budgetCats.length<=1){ alert(tr('keepOne')); return; }
+  if(S.expenses.some(e=>e.catId===id) && !confirm(tr('delBgCatConfirm'))) return;
+  S.budgetCats = S.budgetCats.filter(c=>c.id!==id);
+  closeLimitSheet(); save(); renderBudget();
+}
+function openLimitSheet(id){
+  limitCatId = id;
+  const b = S.budgets[budgetMonth] || {};
+  const lim = (b.limits && b.limits[id]) || '';
+  document.getElementById('lfName').value = bcat(id).name;
+  document.getElementById('lfAmount').value = lim || '';
+  document.getElementById('limitOverlay').classList.add('open');
+}
+function closeLimitSheet(){ document.getElementById('limitOverlay').classList.remove('open'); }
+function saveLimitSheet(){
+  const nm = document.getElementById('lfName').value.trim();
+  if(nm) bcat(limitCatId).name = nm;
+  if(!S.budgets[budgetMonth]) S.budgets[budgetMonth] = {goal:0};
+  const b = S.budgets[budgetMonth];
+  if(!b.limits) b.limits = {};
+  const v = parseFloat(document.getElementById('lfAmount').value);
+  if(!v || v<=0) delete b.limits[limitCatId];
+  else b.limits[limitCatId] = v;
+  save(); closeLimitSheet(); renderBudget();
+}
+function setBgCatColor(id,v){ bcat(id).color=v; save(); }
+function setBgCatName(id,v){ if(v.trim()) bcat(id).name=v.trim(); save(); }
+function addBudgetCat(){
+  const palette = ['#C90038','#111214','#E35C7E','#8E0027','#8A8F96','#5A0019','#B6BBC1'];
+  const nc = {id:uid(), name:tr('newCat'), color:palette[S.budgetCats.length%palette.length]};
+  S.budgetCats.push(nc);
+  save(); renderBudget(); openLimitSheet(nc.id);
+}
+function delBudgetCat(id){
+  if(S.budgetCats.length<=1){ alert(tr('keepOne')); return; }
+  const used = S.expenses.some(e=>e.catId===id);
+  if(used && !confirm(tr('delBgCatConfirm'))) return;
+  S.budgetCats = S.budgetCats.filter(c=>c.id!==id);
+  save(); renderBudget();
+}
+/* --- goal sheet --- */
+function openGoalSheet(){
+  const b = S.budgets[budgetMonth] || {};
+  document.getElementById('gfAmount').value = b.goal || '';
+  document.getElementById('gfCur').value = S.currency || '\u20A9';
+  document.getElementById('goalOverlay').classList.add('open');
+}
+function closeGoalSheet(){ document.getElementById('goalOverlay').classList.remove('open'); }
+function saveGoalSheet(){
+  const v = parseFloat(document.getElementById('gfAmount').value) || 0;
+  if(!S.budgets[budgetMonth]) S.budgets[budgetMonth] = {};
+  S.budgets[budgetMonth].goal = Math.max(0, v);
+  const cur = document.getElementById('gfCur').value.trim();
+  if(cur) S.currency = cur;
+  save(); closeGoalSheet(); renderBudget();
+}
+/* --- expense sheet --- */
+let editExpId = null;
+function openExpenseSheet(id){
+  editExpId = id || null;
+  const e = id ? S.expenses.find(x=>x.id===id) : null;
+  document.getElementById('lblExpSheet').textContent = e ? tr('editExp') : tr('addExp');
+  document.getElementById('btnEDel').style.display = e ? 'block' : 'none';
+  document.getElementById('efAmount').value = e ? e.amount : '';
+  document.getElementById('efNote').value = e ? (e.note||'') : '';
+  const [y,m] = budgetMonth.split('-');
+  const nowK = monthKey(new Date());
+  document.getElementById('efDate').value = e ? e.date
+    : (budgetMonth===nowK ? todayStr() : `${y}-${m}-01`);
+  const sel = document.getElementById('efCat');
+  sel.innerHTML = S.budgetCats.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  if(e) sel.value = e.catId;
+  document.getElementById('expOverlay').classList.add('open');
+}
+function closeExpenseSheet(){ document.getElementById('expOverlay').classList.remove('open'); }
+function saveExpenseSheet(){
+  const amt = parseFloat(document.getElementById('efAmount').value);
+  if(!amt || amt<=0){ document.getElementById('efAmount').focus(); return; }
+  const data = {
+    amount: amt,
+    catId: document.getElementById('efCat').value,
+    note: document.getElementById('efNote').value.trim(),
+    date: document.getElementById('efDate').value || todayStr(),
+  };
+  const before = monthExpenses().reduce((s,e)=>s+e.amount,0);
+  if(editExpId) Object.assign(S.expenses.find(x=>x.id===editExpId), data);
+  else S.expenses.push({id:uid(), ...data});
+  budgetMonth = data.date.slice(0,7);
+  expSelDate = data.date;
+  const dObj = new Date(data.date+'T00:00');
+  expWeekStart = new Date(dObj);
+  expWeekStart.setDate(dObj.getDate()-((dObj.getDay()+6)%7));
+  save(); closeExpenseSheet(); renderBudget();
+
+  // budget warning at 80% / 100%
+  const bb = S.budgets[budgetMonth] || {};
+  if(bb.goal>0){
+    const after = monthExpenses().reduce((s,e)=>s+e.amount,0);
+    const rb = before/bb.goal, ra = after/bb.goal;
+    if(rb<1 && ra>=1) showToast(tr('warnOver'));
+    else if(rb<0.8 && ra>=0.8) showToast(trf('warn80', Math.round(ra*100)));
+  }
+}
+function deleteExpense(){
+  S.expenses = S.expenses.filter(x=>x.id!==editExpId);
+  save(); closeExpenseSheet(); renderBudget();
+}
+
+/* ================= celebration ================= */
+const CONF_COLORS = ['#C90038','#8E0027','#E35C7E','#111214','#FFFFFF'];
+let confPieces = [], confRaf = null;
+function celebrate(noConfetti){
+  const msg = (S.lang||'en')==='ko' ? '\uc644\ub8cc \ucd95\ud558\ud574\u2665 -mandy' : 'Well done!\u2665 -mandy';
+  showToast(msg);
+  if(!noConfetti) popConfetti();
+  if(navigator.vibrate) navigator.vibrate(60);
+}
+function showToast(msg){
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(()=>el.classList.remove('show'), 2200);
+}
+function popConfetti(){
+  const cv = document.getElementById('confetti');
+  const ctx = cv.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const W = window.innerWidth, H = window.innerHeight;
+  cv.width = W*dpr; cv.height = H*dpr;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  cv.style.display = 'block';
+
+  // burst from just above centre, like a popper
+  for(let i=0;i<90;i++){
+    const a = Math.random()*Math.PI*2;
+    const sp = 6 + Math.random()*9;
+    confPieces.push({
+      x: W/2, y: H*0.45,
+      vx: Math.cos(a)*sp,
+      vy: Math.sin(a)*sp - 5,
+      w: 6+Math.random()*6, h: 9+Math.random()*8,
+      rot: Math.random()*Math.PI, vr: (Math.random()-.5)*.35,
+      c: CONF_COLORS[(Math.random()*CONF_COLORS.length)|0],
+      life: 1,
+    });
+  }
+  if(!confRaf) confRaf = requestAnimationFrame(drawConfetti);
+}
+function drawConfetti(){
+  const cv = document.getElementById('confetti');
+  const ctx = cv.getContext('2d');
+  const W = window.innerWidth, H = window.innerHeight;
+  ctx.clearRect(0,0,W,H);
+  confPieces.forEach(p=>{
+    p.vy += 0.32;          // gravity
+    p.vx *= 0.99;          // drag
+    p.x += p.vx; p.y += p.vy;
+    p.rot += p.vr;
+    if(p.y > H*0.7) p.life -= 0.02;
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, p.life);
+    ctx.translate(p.x, p.y);
+    ctx.rotate(p.rot);
+    ctx.fillStyle = p.c;
+    ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+    ctx.restore();
+  });
+  confPieces = confPieces.filter(p=>p.life>0 && p.y < H+40);
+  if(confPieces.length){
+    confRaf = requestAnimationFrame(drawConfetti);
+  } else {
+    ctx.clearRect(0,0,W,H);
+    cv.style.display = 'none';
+    confRaf = null;
+  }
+}
+
+/* ================= album ================= */
+let albumMonth = monthKey(new Date());
+function shiftAlbumMonth(n){
+  const [y,m] = albumMonth.split('-').map(Number);
+  albumMonth = monthKey(new Date(y, m-1+n, 1));
+  renderAlbum();
+}
+function renderAlbum(){
+  const [y,m] = albumMonth.split('-').map(Number);
+  const dim = new Date(y, m, 0).getDate();
+  const monthName = new Date(y, m-1, 1).toLocaleDateString(tr('locale'),{month:'long',year:'numeric'});
+  document.getElementById('alMonth').textContent = monthName.toUpperCase();
+
+  const startIdx = (new Date(y, m-1, 1).getDay()+6)%7;
+  const names = tr('daysMin');
+  const today = todayStr();
+  let g = names.map(n=>`<div class="wd">${n}</div>`).join('');
+  for(let i=0;i<startIdx;i++) g += `<div class="al-cell off"></div>`;
+  let count = 0;
+  for(let d=1;d<=dim;d++){
+    const ds = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const p = S.photos[ds];
+    if(p) count++;
+    g += `<div class="al-cell ${ds===today?'today':''}" onclick="albumTap('${ds}')">
+      ${p ? `<img src="${p}" alt="${ds}">` : d}
+    </div>`;
+  }
+  document.getElementById('alGrid').innerHTML = g;
+  document.getElementById('alHint').textContent = trf('albumCount', count);
+}
+function albumTap(ds){
+  if(S.photos[ds]){ openViewer(ds); return; }
+  if(ds !== todayStr()){ showToast(tr('todayOnly')); return; }
+  openCamera(ds);
+}
+/* --- photo viewer --- */
+let viewDate = null;
+function openViewer(ds){
+  viewDate = ds;
+  document.getElementById('pvImg').src = S.photos[ds];
+  document.getElementById('pvDate').textContent =
+    new Date(ds+'T00:00').toLocaleDateString(tr('locale'),{weekday:'short',day:'numeric',month:'long'});
+  document.getElementById('pvWrap').classList.add('open');
+}
+function closeViewer(){
+  document.getElementById('pvWrap').classList.remove('open');
+  document.getElementById('pvImg').src = '';
+}
+function pvRetake(){
+  const d = viewDate;
+  if(d !== todayStr()){ showToast(tr('todayOnly')); closeViewer(); return; }
+  closeViewer(); openCamera(d);
+}
+function pvDelete(){
+  if(!confirm(tr('delPhotoConfirm'))) return;
+  delete S.photos[viewDate]; save(); closeViewer(); renderAlbum();
+}
+
+/* ================= camera (BeReal-style dual shot) ================= */
+/* Phones can only open one camera at a time in a browser, so the back shot is
+   taken first, then the front, and the two are composited into one image. */
+let camStream = null, camDate = null, camStage = 0; // 0 = back, 1 = front
+let backShot = null, frontShot = null;
+let camZoom = 1;            // digital zoom applied when cropping the frame
+let camZoomSteps = [1, 2];  // .5 is added when the phone has an ultra-wide lens
+let camTrack = null;
+
+async function openCamera(ds){
+  camDate = ds; camStage = 0; backShot = null; frontShot = null; camZoom = 1;
+  document.getElementById('camWrap').classList.add('open');
+  document.getElementById('camPip').style.display = 'none';
+  document.getElementById('camRetake').style.visibility = 'hidden';
+  await startStream('environment');
+}
+async function startStream(facing){
+  stopStream();
+  const v = document.getElementById('camVideo');
+  try{
+    camStream = await navigator.mediaDevices.getUserMedia({
+      video:{ facingMode: facing, width:{ideal:1920}, height:{ideal:1920} },
+      audio:false
+    });
+    v.srcObject = camStream;
+    v.classList.toggle('mirror', facing==='user');
+    await v.play().catch(()=>{});
+    camTrack = camStream.getVideoTracks()[0];
+    camZoom = 1;
+    setupZoomSteps(facing);
+    if(facing!=='user') applyZoom(1);
+    document.getElementById('camStep').textContent =
+      facing==='environment' ? tr('shotBack') : tr('shotFront');
+  }catch(e){
+    document.getElementById('camStage').innerHTML =
+      `<div class="cam-err">${tr('camDenied')}</div>`;
+  }
+}
+function stopStream(){
+  if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream = null; }
+  camTrack = null;
+}
+/* Zoom: use the lens hardware when the phone exposes it, otherwise crop the
+   frame. Ultra-wide (0.5x) only appears when the camera actually supports it. */
+function setupZoomSteps(facing){
+  let steps = [1, 2];
+  try{
+    const caps = camTrack && camTrack.getCapabilities ? camTrack.getCapabilities() : null;
+    if(caps && caps.zoom && caps.zoom.min < 1) steps = [0.5, 1, 2];
+  }catch(e){}
+  camZoomSteps = steps;
+  renderZoomBar();
+  // Selfie cameras tend to render tightly cropped; default to the widest
+  // available step so the front shot doesn't look over-zoomed.
+  if(facing==='user') applyZoom(steps[0]);
+}
+function renderZoomBar(){
+  const el = document.getElementById('camZoom');
+  if(!el) return;
+  el.innerHTML = camZoomSteps.map(z=>
+    `<button class="${z===camZoom?'on':''}" onclick="applyZoom(${z})">${z===1?'1\u00D7':(z<1?'.5\u00D7':z+'\u00D7')}</button>`
+  ).join('');
+}
+function applyZoom(z){
+  camZoom = z;
+  // try optical/native zoom first
+  try{
+    const caps = camTrack && camTrack.getCapabilities ? camTrack.getCapabilities() : null;
+    if(caps && caps.zoom){
+      const val = Math.min(caps.zoom.max, Math.max(caps.zoom.min, z));
+      camTrack.applyConstraints({advanced:[{zoom: val}]}).catch(()=>{});
+    }
+  }catch(e){}
+  const v = document.getElementById('camVideo');
+  if(v){
+    // digital fallback so the preview always matches what gets captured
+    const scale = zoomIsNative() ? 1 : Math.max(1, z);
+    v.style.transform = (v.classList.contains('mirror') ? 'scaleX(-1) ' : '') + `scale(${scale})`;
+  }
+  renderZoomBar();
+}
+function zoomIsNative(){
+  try{
+    const caps = camTrack && camTrack.getCapabilities ? camTrack.getCapabilities() : null;
+    return !!(caps && caps.zoom);
+  }catch(e){ return false; }
+}
+function grabFrame(mirror){
+  const v = document.getElementById('camVideo');
+  const w = v.videoWidth, h = v.videoHeight;
+  // crop to a 3:4 portrait frame
+  const targetR = 3/4;
+  let sw = w, sh = h, sx = 0, sy = 0;
+  if(w/h > targetR){ sw = h*targetR; sx = (w-sw)/2; }
+  else { sh = w/targetR; sy = (h-sh)/2; }
+  // digital zoom: take a smaller centre crop when the lens cannot zoom itself
+  if(!zoomIsNative() && camZoom > 1){
+    const nw = sw/camZoom, nh = sh/camZoom;
+    sx += (sw-nw)/2; sy += (sh-nh)/2; sw = nw; sh = nh;
+  }
+  const c = document.createElement('canvas');
+  c.width = 900; c.height = 1200;
+  const cx = c.getContext('2d');
+  if(mirror){ cx.translate(c.width,0); cx.scale(-1,1); }
+  cx.drawImage(v, sx, sy, sw, sh, 0, 0, c.width, c.height);
+  return c;
+}
+async function camShoot(){
+  if(!camStream) return;
+  if(camStage===0){
+    backShot = grabFrame(false);
+    document.getElementById('camVideo').style.transform = '';
+    document.getElementById('camPipImg').src = backShot.toDataURL('image/jpeg', .7);
+    camStage = 1;
+    await startStream('user');
+    document.getElementById('camRetake').style.visibility = 'visible';
+  } else {
+    frontShot = grabFrame(true);
+    composeAndSave();
+  }
+}
+function camRetake(){
+  // go back to the outward-facing shot
+  camStage = 0; backShot = null; frontShot = null;
+  document.getElementById('camPip').style.display = 'none';
+  document.getElementById('camRetake').style.visibility = 'hidden';
+  startStream('environment');
+}
+function composeAndSave(){
+  const W = backShot.width, H = backShot.height;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const cx = c.getContext('2d');
+  cx.drawImage(backShot, 0, 0);
+
+  // picture-in-picture selfie, top-left, BeReal style
+  const pw = Math.round(W*0.30), ph = Math.round(pw*4/3);
+  const px = Math.round(W*0.045), py = Math.round(W*0.045);
+  const r = Math.round(pw*0.09);
+  cx.save();
+  cx.beginPath();
+  cx.moveTo(px+r,py);
+  cx.arcTo(px+pw,py,px+pw,py+ph,r);
+  cx.arcTo(px+pw,py+ph,px,py+ph,r);
+  cx.arcTo(px,py+ph,px,py,r);
+  cx.arcTo(px,py,px+pw,py,r);
+  cx.closePath();
+  cx.shadowColor = 'rgba(0,0,0,.45)'; cx.shadowBlur = 18;
+  cx.fillStyle = '#000'; cx.fill();
+  cx.shadowBlur = 0;
+  cx.clip();
+  cx.drawImage(frontShot, px, py, pw, ph);
+  cx.restore();
+  cx.lineWidth = Math.max(3, W*0.006);
+  cx.strokeStyle = '#111214';
+  cx.beginPath();
+  cx.moveTo(px+r,py);
+  cx.arcTo(px+pw,py,px+pw,py+ph,r);
+  cx.arcTo(px+pw,py+ph,px,py+ph,r);
+  cx.arcTo(px,py+ph,px,py,r);
+  cx.arcTo(px,py,px+pw,py,r);
+  cx.closePath();
+  cx.stroke();
+
+  try{
+    S.photos[camDate] = c.toDataURL('image/jpeg', .72);
+    save();
+  }catch(e){
+    alert(tr('photoFull'));
+    closeCamera(); return;
+  }
+  closeCamera(); renderAlbum(); celebrate(true);
+}
+function closeCamera(){
+  stopStream();
+  document.getElementById('camWrap').classList.remove('open');
+  backShot = null; frontShot = null;
+}
+
+/* ================= data backup & updates ================= */
+const APP_VERSION = 17;
+
+function exportData(){
+  try{
+    const blob = new Blob([JSON.stringify(S, null, 2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `daily-flow-backup-${todayStr()}.json`;
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 500);
+    showToast(tr('exported'));
+  }catch(e){ alert(tr('exportFail')); }
+}
+function importData(input){
+  const f = input.files && input.files[0];
+  if(!f) return;
+  const rd = new FileReader();
+  rd.onload = ()=>{
+    try{
+      const d = JSON.parse(rd.result);
+      if(!d || !d.categories) throw new Error('bad file');
+      if(!confirm(tr('importConfirm'))) { input.value=''; return; }
+      S = d;
+      if(!S.timers) S.timers = {};
+      if(!S.budgetCats) S.budgetCats = JSON.parse(JSON.stringify(defaultState.budgetCats));
+      if(!S.budgets) S.budgets = {};
+      if(!S.expenses) S.expenses = [];
+      if(!S.currency) S.currency = '\u20A9';
+      if(!S.photos) S.photos = {};
+      save(); applyStatic(); go('home');
+      showToast(tr('imported'));
+    }catch(e){ alert(tr('importFail')); }
+    input.value = '';
+  };
+  rd.readAsText(f);
+}
+function forceUpdate(){
+  showToast(tr('updating'));
+  const bust = 'v=' + Date.now();
+  const url = location.origin + location.pathname + '?' + bust;
+  setTimeout(()=>{ location.replace(url); }, 400);
+}
+/* Silently pull a fresh copy when the app opens or returns to the
+   foreground, so home-screen installs do not get stuck on an old build. */
+async function checkForUpdate(){
+  try{
+    const res = await fetch(location.pathname + '?probe=' + Date.now(), {cache:'no-store'});
+    if(!res.ok) return;
+    const txt = await res.text();
+    const m = txt.match(/const APP_VERSION = (\d+);/);
+    if(m && parseInt(m[1]) > APP_VERSION){
+      showToast(tr('newVersion'));
+      setTimeout(()=>location.replace(location.origin + location.pathname + '?v=' + Date.now()), 1500);
+    }
+  }catch(e){ /* offline: keep using the cached copy */ }
+}
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) checkForUpdate(); });
+
+/* ================= boot ================= */
+applyStatic();
+renderHome();
+checkForUpdate();
+if(runningCount()>0) startTicking();   // resume timers that were running before
+</script>
+</body>
+</html>
